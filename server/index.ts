@@ -49,16 +49,9 @@ if (apiKey && fallbackApiKey) {
 }
 
 app.use(express.json());
-// CORS: allow Cloudflare Workers and local dev to call the API
-const ALLOWED_ORIGINS = [
-  "http://localhost:5173",
-  "https://cocktail.1971271407.workers.dev"
-];
+// CORS: allow all origins
 app.use((_request, response, next) => {
-  const origin = _request.headers.origin;
-  if (origin && ALLOWED_ORIGINS.includes(origin)) {
-    response.setHeader("Access-Control-Allow-Origin", origin);
-  }
+  response.setHeader("Access-Control-Allow-Origin", "*");
   response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   response.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (_request.method === "OPTIONS") {
@@ -128,16 +121,12 @@ app.post("/api/agent/chat", async (request, response) => {
 });
 
 app.post("/api/agent/chat/stream", async (request, response) => {
-  const streamOrigin = request.headers.origin;
-  const extraHeaders: Record<string, string> = {
+  response.writeHead(200, {
+    "Access-Control-Allow-Origin": "*",
     "Content-Type": "text/event-stream",
     "Cache-Control": "no-cache",
     Connection: "keep-alive",
-  };
-  if (streamOrigin && ALLOWED_ORIGINS.includes(streamOrigin)) {
-    extraHeaders["Access-Control-Allow-Origin"] = streamOrigin;
-  }
-  response.writeHead(200, extraHeaders);
+  });
 
   const text = String(request.body?.text ?? "");
 

@@ -8,6 +8,7 @@ import { IngredientPanel } from "./components/IngredientPanel";
 import { MenuView } from "./components/MenuView";
 import { ResultView } from "./components/ResultView";
 import { ShareCardView } from "./components/ShareCardView";
+import ConnectionStatus from "./components/ConnectionStatus";
 import { cocktails } from "./data/cocktails";
 import { getIngredientName } from "./data/ingredients";
 import { buildAgentRecommendation } from "./domain/agentFlow";
@@ -442,6 +443,7 @@ function buildLocalFallbackBundle(result: ReturnType<typeof buildAgentRecommenda
 
   return (
     <main className="app-shell">
+      <ConnectionStatus />
       <div className="phone-frame">
         {screen === "home" && (
           <Home

@@ -240,6 +240,6 @@ app.post("/api/parse-ingredients", async (request, response) => {
   }
 });
 
-app.listen(port, "127.0.0.1", () => {
+app.listen(port, "0.0.0.0", () => {
   console.log(`Cocktail parser API running on http://127.0.0.1:${port}`);
 });

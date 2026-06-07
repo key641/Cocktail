@@ -182,6 +182,43 @@ export default function App() {
   /*  Chat: SSE-streaming handler                                        */
   /* ------------------------------------------------------------------ */
 
+
+function buildLocalFallbackBundle(result: ReturnType<typeof buildAgentRecommendation>): AgentRecommendationBundle {
+  const cocktail = result.recommendation.cocktail;
+  const primary: AgentRecommendationBundle["primary"] = {
+    id: cocktail.id,
+    name: cocktail.name,
+    englishName: cocktail.englishName,
+    recipeMode: "local",
+    source: "local_classic",
+    confidence: result.recommendation.score / 100,
+    tags: cocktail.tags,
+    reason: result.recommendation.reason,
+    recipe: {
+      ingredients: cocktail.ingredients.map((ing) => ({
+        id: ing.ingredientId,
+        name: getIngredientName(ing.ingredientId),
+        amount: ing.amount,
+        optional: ing.optional ?? false
+      })),
+      steps: cocktail.steps,
+      glass: cocktail.glass,
+      garnish: cocktail.garnish,
+      bartenderTip: cocktail.bartenderTip
+    }
+  };
+  return {
+    primary,
+    alternatives: [],
+    reason: result.recommendation.reason,
+    executableInfo: {
+      ownedIngredients: result.ownedIngredients,
+      missingIngredients: result.recommendation.missingIngredients,
+      difficulty: "normal"
+    }
+  };
+}
+
   async function handleChatSubmit(text: string) {
     const userId = nextMessageId();
     const aiId = nextMessageId();
@@ -222,7 +259,12 @@ export default function App() {
           if (line.startsWith("event: ")) {
             eventType = line.slice(7);
           } else if (line.startsWith("data: ")) {
-            const data = JSON.parse(line.slice(6));
+            let data: any;
+            try {
+              data = JSON.parse(line.slice(6));
+            } catch {
+              continue;
+            }
 
             if (eventType === "trace") {
               thinkingSteps.push(data);

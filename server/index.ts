@@ -1,4 +1,4 @@
-import express from "express";
+﻿import express from "express";
 import { ingredients } from "../src/data/ingredients";
 import { parseIngredientsLocally } from "../src/domain/ingredientParser";
 import { createOpenAILlmClient, createFallbackClient } from "./ai/openaiClient";
@@ -49,6 +49,17 @@ if (apiKey && fallbackApiKey) {
 }
 
 app.use(express.json());
+// CORS: allow Cloudflare Pages and local dev to call the API
+app.use((_request, response, next) => {
+  response.setHeader("Access-Control-Allow-Origin", "*");
+  response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  response.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (_request.method === "OPTIONS") {
+    response.status(204).end();
+    return;
+  }
+  next();
+});
 
 app.get("/api/agent/status", (_request, response) => {
   response.json({
@@ -64,7 +75,7 @@ app.get("/api/agent/status", (_request, response) => {
 });
 
 app.post("/api/openai-test", async (request, response) => {
-  const text = String(request.body?.text ?? "你好");
+  const text = String(request.body?.text ?? "浣犲ソ");
 
   if (!openAIClient) {
     response.status(400).json({ ok: false, error: "OPENAI_API_KEY is not configured." });
@@ -111,6 +122,7 @@ app.post("/api/agent/chat", async (request, response) => {
 
 app.post("/api/agent/chat/stream", async (request, response) => {
   response.writeHead(200, {
+    "Access-Control-Allow-Origin": "*",
     "Content-Type": "text/event-stream",
     "Cache-Control": "no-cache",
     Connection: "keep-alive",

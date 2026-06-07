@@ -1,6 +1,8 @@
 ﻿import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
+const apiTarget = "https://cocktail-yzv9.onrender.com";
+
 export default defineConfig({
   plugins: [
     react(),
@@ -13,7 +15,6 @@ export default defineConfig({
             response.end();
             return;
           }
-
           next();
         });
       }
@@ -25,7 +26,7 @@ export default defineConfig({
         "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://www.gstatic.com; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://cocktail-yzv9.onrender.com http: ws:"
     },
     proxy: {
-      "/api": process.env.VITE_API_BASE_URL ?? "http://127.0.0.1:4174"
+      "/api": apiTarget
     }
   }
 });

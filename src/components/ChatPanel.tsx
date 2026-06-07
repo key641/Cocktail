@@ -38,11 +38,47 @@ type ChatPanelProps = {
 /*  Sub-components                                                     */
 /* ------------------------------------------------------------------ */
 
-function ThinkingInline({ steps, live }: { steps: ThinkingStep[]; live?: boolean }) {
-  const [open, setOpen] = useState(true);
+function ThinkingInline({ steps, live, minimal }: { steps: ThinkingStep[]; live?: boolean; minimal?: boolean }) {
+  const [open, setOpen] = useState(false);
+
+  // Auto-collapse when switching to minimal (done) mode
+  useEffect(() => {
+    if (minimal) setOpen(false);
+  }, [minimal]);
 
   if (!steps.length) return null;
 
+  // In minimal (done) mode, show a compact one-liner that expands on click
+  if (minimal) {
+    return (
+      <div className="thinking-inline thinking-done">
+        <button
+          className="thinking-toggle"
+          onClick={() => setOpen(!open)}
+          aria-expanded={open}
+        >
+          <span className="thinking-dot done" />
+          <span>思考已完成 ({steps.length} 步)</span>
+          <span className={`thinking-chevron ${open ? "open" : ""}`}>▼</span>
+        </button>
+        {open && (
+          <div className="thinking-steps">
+            {steps.map((entry, i) => (
+              <div key={i} className={`thinking-step ${entry.step.includes("兜底") ? "fallback" : ""}`}>
+                <span className="thinking-step-num">{i + 1}</span>
+                <div>
+                  <strong>{entry.step}</strong>
+                  <p>{entry.detail}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Live mode: pulsing dot + expandable steps
   return (
     <div className="thinking-inline">
       <button
@@ -50,14 +86,14 @@ function ThinkingInline({ steps, live }: { steps: ThinkingStep[]; live?: boolean
         onClick={() => setOpen(!open)}
         aria-expanded={open}
       >
-        <span className={`thinking-dot ${live ? "live" : ""}`} />
+        <span className="thinking-dot live" />
         <span>AI 正在思考 ({steps.length} 步)</span>
         <span className={`thinking-chevron ${open ? "open" : ""}`}>▼</span>
       </button>
       {open && (
         <div className="thinking-steps">
           {steps.map((entry, i) => (
-            <div key={i} className={`thinking-step ${live && i === steps.length - 1 ? "latest" : ""}`}>
+            <div key={i} className="thinking-step latest">
               <span className="thinking-step-num">{i + 1}</span>
               <div>
                 <strong>{entry.step}</strong>
@@ -129,7 +165,7 @@ function AiBubble({
   onSelectRecommendation: (index: number) => void;
 }) {
   const hasSteps = message.thinkingSteps && message.thinkingSteps.length > 0;
-  const isPendingOnly = message.isPending && !message.text;
+  const isPendingOnly = message.isPending && !message.text && !message.recommendation;
 
   const speed = message.typingSpeed ?? 30;
   const { displayed, isTyping } = useTypewriter(message.text, speed, !isPendingOnly);
@@ -146,16 +182,13 @@ function AiBubble({
       </div>
       <div className="chat-bubble-content">
         {hasSteps && (
-          <ThinkingInline steps={message.thinkingSteps!} live={isPendingOnly} />
+          <ThinkingInline steps={message.thinkingSteps!} live={isPendingOnly} minimal={!isPendingOnly} />
         )}
 
         {isPendingOnly && !hasSteps && (
           <div className="chat-bubble ai-bubble thinking-bubble">
-            <span className="thinking-dots">
-              <span>.</span>
-              <span>.</span>
-              <span>.</span>
-            </span>
+            <span className="thinking-dot live" />
+            <span>AI 正在思考中...</span>
           </div>
         )}
 
@@ -295,6 +328,18 @@ export function ChatPanel({
               onSelectRecommendation={onSelectRecommendation}
             />
           )
+        )}
+
+        {isThinking && !messages.some((m) => m.role === "ai") && (
+          <div className="chat-message ai-message">
+            <div className="chat-avatar ai-avatar">
+              <ListeningGlass state="thinking" liquidTone="citrus" />
+            </div>
+            <div className="chat-bubble ai-bubble thinking-bubble">
+              <span className="thinking-dot live" />
+              <span>AI 正在思考中...</span>
+            </div>
+          </div>
         )}
 
         <div ref={bottomRef} />

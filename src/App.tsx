@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { ChatPanel, type ChatMessage, type ThinkingStep } from "./components/ChatPanel";
 import { CocktailCard } from "./components/CocktailCard";
 import { ExplorePanel, type ExploreChoices } from "./components/ExplorePanel";
@@ -11,7 +11,7 @@ import { ShareCardView } from "./components/ShareCardView";
 import ConnectionStatus from "./components/ConnectionStatus";
 import { cocktails } from "./data/cocktails";
 import { getIngredientName } from "./data/ingredients";
-import { buildAgentRecommendation } from "./domain/agentFlow";
+import { buildAgentRecommendation, moodFromPreference, strengthFromPreference, tasteFromPreference } from "./domain/agentFlow";
 import { buildBartenderOneLiner, buildUnderstandingSummary, type UnderstandingSummary } from "./domain/agentNarrative";
 import { parseIngredientsLocally } from "./domain/ingredientParser";
 import { parseUserPreference, type ParsedPreference } from "./domain/preferenceParser";
@@ -20,6 +20,7 @@ import { checkAlcoholSafety, type AlcoholSafetyResult } from "./domain/safety";
 import type { CaptionStyle } from "./domain/captionGenerator";
 import type { AgentRecommendationBundle, AgentSessionState, Citation, TrustSignal } from "./domain/agentTypes";
 import type { CocktailRecommendation, TasteProfile } from "./domain/types";
+import { rankForExploration } from "./domain/recommendation";
 
 type Screen = "home" | "chat" | "explore" | "ingredients" | "menu" | "result" | "follow" | "share";
 
@@ -134,6 +135,7 @@ export default function App() {
   const [activeStep, setActiveStep] = useState(0);
   const [photoUrl, setPhotoUrl] = useState("");
   const [captionStyle, setCaptionStyle] = useState<CaptionStyle>("casual_share");
+  const activeAiIdRef = useRef<string | null>(null);
 
   const ownedNames = useMemo(() => ownedIngredients.map(getIngredientName), [ownedIngredients]);
 
@@ -184,17 +186,17 @@ export default function App() {
   /* ------------------------------------------------------------------ */
 
 
-function buildLocalFallbackBundle(result: ReturnType<typeof buildAgentRecommendation>): AgentRecommendationBundle {
-  const cocktail = result.recommendation.cocktail;
-  const primary: AgentRecommendationBundle["primary"] = {
+function cocktailToCandidate(rec: CocktailRecommendation): AgentRecommendationBundle["primary"] {
+  const cocktail = rec.cocktail;
+  return {
     id: cocktail.id,
     name: cocktail.name,
     englishName: cocktail.englishName,
     recipeMode: "local",
     source: "local_classic",
-    confidence: result.recommendation.score / 100,
+    confidence: rec.score / 100,
     tags: cocktail.tags,
-    reason: result.recommendation.reason,
+    reason: rec.reason,
     recipe: {
       ingredients: cocktail.ingredients.map((ing) => ({
         id: ing.ingredientId,
@@ -208,13 +210,20 @@ function buildLocalFallbackBundle(result: ReturnType<typeof buildAgentRecommenda
       bartenderTip: cocktail.bartenderTip
     }
   };
+}
+
+function buildLocalFallbackBundle(
+  primaryRec: CocktailRecommendation,
+  altRecs: CocktailRecommendation[],
+  ownedIngredients: string[]
+): AgentRecommendationBundle {
   return {
-    primary,
-    alternatives: [],
-    reason: result.recommendation.reason,
+    primary: cocktailToCandidate(primaryRec),
+    alternatives: altRecs.map(cocktailToCandidate),
+    reason: primaryRec.reason,
     executableInfo: {
-      ownedIngredients: result.ownedIngredients,
-      missingIngredients: result.recommendation.missingIngredients,
+      ownedIngredients,
+      missingIngredients: primaryRec.missingIngredients,
       difficulty: "normal"
     }
   };
@@ -224,10 +233,20 @@ function buildLocalFallbackBundle(result: ReturnType<typeof buildAgentRecommenda
     const userId = nextMessageId();
     const aiId = nextMessageId();
 
-    setChatMessages((prev) => [
-      ...prev,
-      { id: userId, role: "user", text }
-    ]);
+    setChatMessages((prev) => {
+      const cleaned = prev.filter((m) => {
+        if (m.role !== "ai") return true;
+        // Keep completed AI messages (have text or recommendation)
+        if (m.text || m.recommendation) return true;
+        // Remove ghost/incomplete AI messages from previous queries
+        return false;
+      });
+      return [
+        ...cleaned,
+        { id: userId, role: "user", text }
+      ];
+    });
+    activeAiIdRef.current = aiId;
     setIsStreaming(true);
 
     const thinkingSteps: ThinkingStep[] = [];
@@ -249,69 +268,97 @@ function buildLocalFallbackBundle(result: ReturnType<typeof buildAgentRecommenda
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
+        if (value) {
+          buffer += decoder.decode(value, { stream: true });
+        }
 
-        let eventType = "";
-        for (const line of lines) {
-          if (line.startsWith("event: ")) {
-            eventType = line.slice(7);
-          } else if (line.startsWith("data: ")) {
-            let data: any;
-            try {
-              data = JSON.parse(line.slice(6));
-            } catch {
-              continue;
-            }
+        // Process complete SSE events (delimited by \n\n)
+        const sep = "\n\n";
+        let sepIdx;
+        while ((sepIdx = buffer.indexOf(sep)) >= 0) {
+          const rawEvent = buffer.slice(0, sepIdx);
+          buffer = buffer.slice(sepIdx + sep.length);
 
-            if (eventType === "trace") {
-              thinkingSteps.push(data);
-            } else if (eventType === "safety_blocked") {
-              setChatMessages((prev) => [
-                ...prev,
-                {
-                  id: aiId,
-                  role: "ai",
-                  text: data.message || "为了你的健康，我不建议你饮酒哦。要不要试试无酒精版本？",
-                  thinkingSteps: [...thinkingSteps],
-                  safetyMessage: data.message
-                }
-              ]);
-              setIsStreaming(false);
-              return;
-            } else if (eventType === "result") {
-              if (data.sessionPatch) {
-                setAgentSession((current) => ({ ...current, ...data.sessionPatch }));
-              }
-
-              const bundle = data.recommendation as AgentRecommendationBundle | undefined;
-              setLatestBundle(bundle);
-              setLatestAlternatives((data.alternatives as CocktailRecommendation[]) ?? []);
-              setOwnedIngredients(data.toolResults?.ownedIngredients ?? []);
-              setUnknownIngredients([]);
-
-              const aiText = buildAiResponseText(data);
-
-              setChatMessages((prev) => [
-                ...prev,
-                {
-                  id: aiId,
-                  role: "ai",
-                  text: aiText,
-                  thinkingSteps: [...thinkingSteps],
-                  recommendation: bundle
-                }
-              ]);
-              setIsStreaming(false);
-              return;
-            } else if (eventType === "error") {
-              throw new Error(data.message || "Stream error");
+          // Parse event type and data from each complete event block
+          let eventType = "";
+          let dataJson = "";
+          for (const line of rawEvent.split("\n")) {
+            if (line.startsWith("event: ")) {
+              eventType = line.slice(7).trim();
+            } else if (line.startsWith("data: ")) {
+              dataJson = line.slice(6);
             }
           }
+
+          if (!eventType || !dataJson) continue;
+
+          const data = JSON.parse(dataJson);
+
+          if (eventType === "trace") {
+            thinkingSteps.push(data);
+            setChatMessages((prev) => {
+              const exists = prev.some((msg) => msg.id === aiId);
+              if (!exists) {
+                return [...prev, { id: aiId, role: "ai", text: "", thinkingSteps: [...thinkingSteps], isPending: true }];
+              }
+              return prev.map((msg) =>
+                msg.id === aiId
+                  ? { ...msg, thinkingSteps: [...thinkingSteps] }
+                  : msg
+              );
+            });
+          } else if (eventType === "safety_blocked") {
+            setChatMessages((prev) => {
+              const exists = prev.some((msg) => msg.id === aiId);
+              const newMsg = {
+                id: aiId,
+                role: "ai" as const,
+                text: data.message || "为了你的健康，我不建议你饮酒哦。要不要试试无酒精版本？",
+                thinkingSteps: [...thinkingSteps],
+                safetyMessage: data.message,
+                isPending: false
+              };
+              if (!exists) return [...prev, newMsg];
+              return prev.map((msg) =>
+                msg.id === aiId
+                  ? { ...msg, ...newMsg }
+                  : msg
+              );
+            });
+            setIsStreaming(false);
+            activeAiIdRef.current = null;
+            return;
+          } else if (eventType === "result") {
+            if (data.sessionPatch) {
+              setAgentSession((current) => ({ ...current, ...data.sessionPatch }));
+            }
+
+            const bundle = data.recommendation as AgentRecommendationBundle | undefined;
+            setLatestBundle(bundle);
+            const primaryRec = data.primaryRecommendation as CocktailRecommendation | undefined;
+            const altRecs = (data.alternatives as CocktailRecommendation[]) ?? [];
+            setLatestAlternatives(primaryRec ? [primaryRec, ...altRecs] : altRecs);
+            setOwnedIngredients(data.toolResults?.ownedIngredients ?? []);
+            setUnknownIngredients([]);
+
+            const aiText = buildAiResponseText(data);
+
+            setChatMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === aiId
+                  ? { ...msg, text: aiText, thinkingSteps: [...thinkingSteps], recommendation: bundle, isPending: false }
+                  : msg
+              )
+            );
+            setIsStreaming(false);
+            return;
+          } else if (eventType === "error") {
+            throw new Error(data.message || "Stream error");
+          }
         }
+
+        if (done) break;
       }
 
       throw new Error("Stream ended without result");
@@ -320,16 +367,13 @@ function buildLocalFallbackBundle(result: ReturnType<typeof buildAgentRecommenda
       const parsed = await parseAgentRequestWithFallback(text);
 
       if (parsed.safety.shouldAvoidAlcohol) {
-        setChatMessages((prev) => [
-          ...prev,
-          {
-            id: aiId,
-            role: "ai",
-            text: parsed.safety.message,
-            thinkingSteps,
-            safetyMessage: parsed.safety.message
-          }
-        ]);
+        setChatMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === aiId
+              ? { ...msg, text: parsed.safety.message, thinkingSteps, safetyMessage: parsed.safety.message, isPending: false }
+              : msg
+          )
+        );
         setIsStreaming(false);
         return;
       }
@@ -344,24 +388,45 @@ function buildLocalFallbackBundle(result: ReturnType<typeof buildAgentRecommenda
         missingIngredients: result.recommendation.missingIngredients
       });
 
+      const alternatives = rankForExploration({
+        cocktails,
+        mood: moodFromPreference(parsed.preference),
+        preferredStrength: strengthFromPreference(parsed.preference.strengthPreference),
+        tasteProfile: tasteFromPreference(parsed.preference),
+        semanticQuery: text
+      })
+        .filter((r) => r.cocktail.id !== result.recommendation.cocktail.id)
+        .slice(0, 2);
+
+      const fallbackBundle = buildLocalFallbackBundle(
+        result.recommendation,
+        alternatives,
+        result.ownedIngredients
+      );
+
       setOwnedIngredients(result.ownedIngredients);
       setUnknownIngredients([]);
-      setLatestBundle(undefined);
-      setLatestAlternatives([]);
+      setLatestBundle(fallbackBundle);
+      setLatestAlternatives([result.recommendation, ...alternatives]);
 
-      setChatMessages((prev) => [
-        ...prev,
-        {
-          id: aiId,
-          role: "ai",
-          text: line,
-          thinkingSteps: [
-            ...thinkingSteps,
-            { step: "本地兜底", detail: "后端 Agent 不可用，已使用本地匹配引擎" }
-          ]
-        }
-      ]);
+      setChatMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === aiId
+            ? {
+                ...msg,
+                text: line,
+                thinkingSteps: [
+                  ...thinkingSteps,
+                  { step: "⚠️ 本地兜底", detail: "后端 Agent 不可用，已使用本地匹配引擎" }
+                ],
+                recommendation: fallbackBundle,
+                isPending: false
+              }
+            : msg
+        )
+      );
       setIsStreaming(false);
+      activeAiIdRef.current = null;
     }
   }
 

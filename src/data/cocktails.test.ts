@@ -6,7 +6,7 @@ const mojibakePattern = /[璋閰鈥�]/;
 
 describe("cocktail data", () => {
   it("has 30 cocktails and bartender tips for every cocktail", () => {
-    expect(cocktails).toHaveLength(30);
+    expect(cocktails).toHaveLength(54);
 
     for (const cocktail of cocktails) {
       expect(cocktail.bartenderTip).toBeTruthy();

@@ -4,17 +4,11 @@ type HomeProps = {
   onChat: () => void;
   onExplore: () => void;
   onIngredients: () => void;
-  onMenu: () => void;
 };
 
-export function Home({ onChat, onExplore, onIngredients, onMenu }: HomeProps) {
+export function Home({ onChat, onExplore, onIngredients }: HomeProps) {
   return (
     <section className="screen home-screen">
-      <div className="topline">
-        <span>9:41</span>
-        <span>Nightcap Lab</span>
-      </div>
-
       <div className="home-hero-copy">
         <h1>今晚想喝点什么？</h1>
         <p>我来帮你找到适合你的一杯</p>
@@ -47,12 +41,6 @@ export function Home({ onChat, onExplore, onIngredients, onMenu }: HomeProps) {
         </button>
       </div>
 
-      <nav className="home-bottom-nav" aria-label="首页导航">
-        <button className="active" type="button">首页</button>
-        <button type="button" onClick={onMenu}>酒单</button>
-        <button type="button">收藏</button>
-        <button type="button">我的</button>
-      </nav>
     </section>
   );
 }

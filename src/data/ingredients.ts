@@ -43,7 +43,24 @@ export const ingredients: Ingredient[] = [
   { id: "worcestershire", name: "伍斯特酱", category: "bitter", aliases: ["worcestershire", "伍斯特"], common: false },
   { id: "egg-white", name: "蛋白", category: "mixer", aliases: ["egg white", "蛋白"], common: false },
   { id: "olive", name: "橄榄", category: "garnish", aliases: ["olive", "橄榄"], common: false },
-  { id: "salt", name: "盐", category: "garnish", aliases: ["salt", "盐"], common: true }
+  { id: "salt", name: "盐", category: "garnish", aliases: ["salt", "盐"], common: true },
+
+  { id: "honey-syrup", name: "蜂蜜糖浆", category: "sweetener", aliases: ["honey syrup", "蜂蜜", "honey"], common: false },
+  { id: "creme-de-mure", name: "黑莓利口酒", category: "liqueur", aliases: ["creme de mure", "blackberry liqueur", "黑莓酒"], common: false },
+  { id: "green-chartreuse", name: "绿查特酒", category: "liqueur", aliases: ["chartreuse", "green chartreuse", "查特酒"], common: false },
+  { id: "pisco", name: "皮斯科", category: "spirit", aliases: ["pisco", "皮斯科白兰地"], common: false },
+  { id: "scotch", name: "苏格兰威士忌", category: "spirit", aliases: ["scotch", "scotch whisky", "苏威"], common: false },
+  { id: "absinthe", name: "苦艾酒", category: "spirit", aliases: ["absinthe", "苦艾"], common: false },
+  { id: "peychauds-bitters", name: "佩绍苦精", category: "bitter", aliases: ["peychaud", "peychauds bitters", "佩绍"], common: false },
+
+  { id: "mezcal", name: "梅斯卡尔", category: "spirit", aliases: ["mezcal", "梅斯卡尔"], common: false },
+  { id: "amaretto", name: "杏仁利口酒", category: "liqueur", aliases: ["amaretto", "disaronno", "杏仁酒"], common: false },
+  { id: "vanilla-syrup", name: "香草糖浆", category: "sweetener", aliases: ["vanilla syrup", "vanilla", "香草糖浆"], common: false },
+  { id: "passion-fruit-puree", name: "百香果泥", category: "juice", aliases: ["passion fruit", "passionfruit", "百香果"], common: false },
+  { id: "elderflower-liqueur", name: "接骨木花利口酒", category: "liqueur", aliases: ["st germain", "elderflower", "接骨木花"], common: false },
+  { id: "limoncello", name: "柠檬酒", category: "liqueur", aliases: ["limoncello", "柠檬酒"], common: false },
+  { id: "jalapeno", name: "墨西哥辣椒", category: "garnish", aliases: ["jalapeno", "jalapeño", "辣椒"], common: false },
+  { id: "basil", name: "罗勒", category: "herb", aliases: ["basil", "罗勒", "九层塔"], common: false },
 ];
 
 export const ingredientById = new Map(ingredients.map((ingredient) => [ingredient.id, ingredient]));

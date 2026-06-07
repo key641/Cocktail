@@ -1,10 +1,11 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChatPanel, type ChatMessage, type ThinkingStep } from "./components/ChatPanel";
 import { CocktailCard } from "./components/CocktailCard";
 import { ExplorePanel, type ExploreChoices } from "./components/ExplorePanel";
 import { FollowAlongView } from "./components/FollowAlongView";
 import { Home } from "./components/Home";
 import { IngredientPanel } from "./components/IngredientPanel";
+import { BottomNav } from "./components/BottomNav";
 import { MenuView } from "./components/MenuView";
 import { ResultView } from "./components/ResultView";
 import { ShareCardView } from "./components/ShareCardView";
@@ -23,6 +24,10 @@ import type { CocktailRecommendation, TasteProfile } from "./domain/types";
 import { rankForExploration } from "./domain/recommendation";
 
 type Screen = "home" | "chat" | "explore" | "ingredients" | "menu" | "result" | "follow" | "share";
+
+function isBottomNavScreen(s: Screen): boolean {
+  return s === "home" || s === "menu";
+}
 
 const defaultTasteProfile: TasteProfile = {
   sweet: 2, sour: 3, bitter: 1, fresh: 4, strong: 2, fruity: 2, herbal: 1, bubbly: 0
@@ -102,6 +107,17 @@ function buildAiResponseText(result: Record<string, unknown>): string {
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>("home");
+  const scrollPositions = useRef<Partial<Record<Screen, number>>>({});
+
+  function navigateTo(next: Screen) {
+    const el = document.querySelector(".screen");
+    if (el) scrollPositions.current[screen] = el.scrollTop;
+    // Detail pages always start at top
+    if (next === "result" || next === "follow" || next === "share") {
+      delete scrollPositions.current[next];
+    }
+    setScreen(next);
+  }
   const [resultBackScreen, setResultBackScreen] = useState<Screen>("home");
 
   /* --- result-screen state (shared by all paths) --- */
@@ -134,6 +150,19 @@ export default function App() {
   /* --- follow / share --- */
   const [activeStep, setActiveStep] = useState(0);
   const [photoUrl, setPhotoUrl] = useState("");
+
+  // Restore scroll position when switching screens
+  const prevScreenRef = useRef<Screen>(screen);
+  if (prevScreenRef.current !== screen) {
+    const saved = scrollPositions.current[screen];
+    if (saved !== undefined) {
+      requestAnimationFrame(() => {
+        const el = document.querySelector(".screen");
+        if (el) el.scrollTop = saved;
+      });
+    }
+    prevScreenRef.current = screen;
+  }
   const [captionStyle, setCaptionStyle] = useState<CaptionStyle>("casual_share");
   const activeAiIdRef = useRef<string | null>(null);
 
@@ -158,7 +187,7 @@ export default function App() {
     setCitations([]);
     setRecommendation(result);
     setResultBackScreen("home");
-    setScreen("result");
+    navigateTo("result");
   }
 
   async function showIngredientResult(selected: string[], freeText: string, tasteProfile: TasteProfile) {
@@ -178,7 +207,7 @@ export default function App() {
     setRecommendation(result);
     setIsParsing(false);
     setResultBackScreen("home");
-    setScreen("result");
+    navigateTo("result");
   }
 
   /* ------------------------------------------------------------------ */
@@ -453,7 +482,7 @@ function buildLocalFallbackBundle(
       setTrustSignals([]);
       setCitations([]);
       setResultBackScreen("chat");
-      setScreen("result");
+      navigateTo("result");
       return;
     }
 
@@ -468,7 +497,7 @@ function buildLocalFallbackBundle(
       setTrustSignals([]);
       setCitations([]);
       setResultBackScreen("chat");
-      setScreen("result");
+      navigateTo("result");
     }
   }
 
@@ -484,22 +513,22 @@ function buildLocalFallbackBundle(
     setTrustSignals([]);
     setCitations([]);
     setRecommendation(rec);
-    setResultBackScreen("home");
-    setScreen("result");
+    setResultBackScreen("menu");
+    navigateTo("result");
   }
 
   function startFollowAlong() {
     setActiveStep(0);
     setPhotoUrl("");
     setCaptionStyle("casual_share");
-    setScreen("follow");
+    navigateTo("follow");
   }
 
   function handlePhotoSelected(file: File) {
     if (photoUrl) URL.revokeObjectURL(photoUrl);
     setPhotoUrl(URL.createObjectURL(file));
     setCaptionStyle("casual_share");
-    setScreen("share");
+    navigateTo("share");
   }
 
   /* ------------------------------------------------------------------ */
@@ -512,31 +541,30 @@ function buildLocalFallbackBundle(
         <ConnectionStatus />
         {screen === "home" && (
           <Home
-            onChat={() => setScreen("chat")}
-            onExplore={() => setScreen("explore")}
-            onIngredients={() => setScreen("ingredients")}
-            onMenu={() => setScreen("menu")}
+            onChat={() => navigateTo("chat")}
+            onExplore={() => navigateTo("explore")}
+            onIngredients={() => navigateTo("ingredients")}
           />
         )}
         {screen === "chat" && (
           <ChatPanel
             messages={chatMessages}
             isThinking={isStreaming}
-            onBack={() => setScreen("home")}
+            onBack={() => navigateTo("home")}
             onSubmit={handleChatSubmit}
             onSelectRecommendation={openChatRecommendation}
           />
         )}
         {screen === "explore" && (
-          <ExplorePanel onBack={() => setScreen("home")} onComplete={showExplorationResult} />
+          <ExplorePanel onBack={() => navigateTo("home")} onComplete={showExplorationResult} />
         )}
         {screen === "menu" && (
-          <MenuView cocktails={cocktails} onBack={() => setScreen("home")} onSelect={showMenuCocktail} />
+          <MenuView cocktails={cocktails} onBack={() => navigateTo("home")} onSelect={showMenuCocktail} />
         )}
         {screen === "ingredients" && (
           <IngredientPanel
             isParsing={isParsing}
-            onBack={() => setScreen("home")}
+            onBack={() => navigateTo("home")}
             onComplete={showIngredientResult}
           />
         )}
@@ -550,7 +578,7 @@ function buildLocalFallbackBundle(
             agentRecommendation={agentRecommendation}
             trustSignals={trustSignals}
             citations={citations}
-            onBack={() => setScreen(resultBackScreen)}
+            onBack={() => navigateTo(resultBackScreen)}
             onTryAnother={startFollowAlong}
           />
         )}
@@ -558,7 +586,7 @@ function buildLocalFallbackBundle(
           <FollowAlongView
             cocktail={recommendation.cocktail}
             activeStep={activeStep}
-            onBack={() => setScreen("result")}
+            onBack={() => navigateTo("result")}
             onStepChange={setActiveStep}
             onPhotoSelected={handlePhotoSelected}
           />
@@ -568,13 +596,19 @@ function buildLocalFallbackBundle(
             cocktail={recommendation.cocktail}
             photoUrl={photoUrl}
             captionStyle={captionStyle}
-            onBack={() => setScreen("follow")}
+            onBack={() => navigateTo("follow")}
             onCaptionStyleChange={setCaptionStyle}
-            onRetake={() => setScreen("follow")}
+            onRetake={() => navigateTo("follow")}
+          />
+        )}
+      {isBottomNavScreen(screen) && (
+          <BottomNav
+            active={screen === "menu" ? "menu" : "home"}
+            onNavigate={(s: string) => navigateTo(s as Screen)}
           />
         )}
       </div>
-      {screen === "home" && <CocktailCard cocktail={cocktails[5]} ambient />}
+        {screen === "home" && <CocktailCard cocktail={cocktails[5]} ambient />}
     </main>
   );
 }

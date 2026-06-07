@@ -2328,3 +2328,40 @@ input[type="range"] {
 .chat-bubble-content .chat-bubble {
   margin-top: 0;
 }
+
+/* --- ingredient overview in recommendation cards --- */
+
+.chat-rec-ingredients {
+  margin: 0;
+  color: #6b6760;
+  font-size: 12px;
+  line-height: 1.55;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* --- live thinking dot animation --- */
+
+.thinking-dot.live {
+  animation: thinkingDotLive 1s ease-in-out infinite;
+  background: #9bb87c;
+}
+
+@keyframes thinkingDotLive {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.4); }
+}
+
+/* --- latest thinking step highlight --- */
+
+.thinking-step.latest {
+  animation: stepFadeIn 0.35s ease-out;
+}
+
+@keyframes stepFadeIn {
+  from { opacity: 0.4; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+

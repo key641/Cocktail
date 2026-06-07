@@ -23,6 +23,7 @@ export type ChatMessage = {
   recommendation?: AgentRecommendationBundle;
   safetyMessage?: string;
   typingSpeed?: number;
+  isPending?: boolean;
 };
 
 type ChatPanelProps = {
@@ -37,7 +38,7 @@ type ChatPanelProps = {
 /*  Sub-components                                                     */
 /* ------------------------------------------------------------------ */
 
-function ThinkingInline({ steps }: { steps: ThinkingStep[] }) {
+function ThinkingInline({ steps, live }: { steps: ThinkingStep[]; live?: boolean }) {
   const [open, setOpen] = useState(true);
 
   if (!steps.length) return null;
@@ -49,14 +50,14 @@ function ThinkingInline({ steps }: { steps: ThinkingStep[] }) {
         onClick={() => setOpen(!open)}
         aria-expanded={open}
       >
-        <span className="thinking-dot" />
+        <span className={`thinking-dot ${live ? "live" : ""}`} />
         <span>AI 正在思考 ({steps.length} 步)</span>
         <span className={`thinking-chevron ${open ? "open" : ""}`}>▼</span>
       </button>
       {open && (
         <div className="thinking-steps">
           {steps.map((entry, i) => (
-            <div key={i} className="thinking-step">
+            <div key={i} className={`thinking-step ${live && i === steps.length - 1 ? "latest" : ""}`}>
               <span className="thinking-step-num">{i + 1}</span>
               <div>
                 <strong>{entry.step}</strong>
@@ -73,16 +74,15 @@ function ThinkingInline({ steps }: { steps: ThinkingStep[] }) {
 function RecommendationMiniCard({
   candidate,
   isPrimary,
-  reason,
   onSelect
 }: {
   candidate: AgentDrinkCandidate;
   isPrimary: boolean;
-  reason?: string;
   onSelect: () => void;
 }) {
   const visualSpec = candidate.recipeMode === "local" ? getCocktailVisualSpec(candidate.id) : undefined;
-  const displayReason = reason || candidate.reason;
+  const ingredients = candidate.recipe?.ingredients ?? [];
+  const ingredientNames = ingredients.map((ing) => ing.name).join("、");
 
   return (
     <button
@@ -111,7 +111,7 @@ function RecommendationMiniCard({
             <span key={tag}>{tag}</span>
           ))}
         </div>
-        <p className="chat-rec-reason">{displayReason}</p>
+        <p className="chat-rec-ingredients">{ingredientNames || "暂无原料信息"}</p>
       </div>
     </button>
   );
@@ -128,8 +128,11 @@ function AiBubble({
   message: ChatMessage;
   onSelectRecommendation: (index: number) => void;
 }) {
+  const hasSteps = message.thinkingSteps && message.thinkingSteps.length > 0;
+  const isPendingOnly = message.isPending && !message.text;
+
   const speed = message.typingSpeed ?? 30;
-  const { displayed, isTyping } = useTypewriter(message.text, speed, true);
+  const { displayed, isTyping } = useTypewriter(message.text, speed, !isPendingOnly);
   const text = displayed || message.text;
 
   const recommendations = message.recommendation
@@ -142,16 +145,28 @@ function AiBubble({
         <ListeningGlass state="thinking" liquidTone="citrus" />
       </div>
       <div className="chat-bubble-content">
-        {message.thinkingSteps && message.thinkingSteps.length > 0 && (
-          <ThinkingInline steps={message.thinkingSteps} />
+        {hasSteps && (
+          <ThinkingInline steps={message.thinkingSteps!} live={isPendingOnly} />
         )}
 
-        <div className="chat-bubble ai-bubble">
-          <p className={isTyping ? "typing-cursor" : ""}>
-            {text}
-            {isTyping && <span className="cursor-blink">|</span>}
-          </p>
-        </div>
+        {isPendingOnly && !hasSteps && (
+          <div className="chat-bubble ai-bubble thinking-bubble">
+            <span className="thinking-dots">
+              <span>.</span>
+              <span>.</span>
+              <span>.</span>
+            </span>
+          </div>
+        )}
+
+        {!isPendingOnly && text && (
+          <div className="chat-bubble ai-bubble">
+            <p className={isTyping ? "typing-cursor" : ""}>
+              {text}
+              {isTyping && <span className="cursor-blink">|</span>}
+            </p>
+          </div>
+        )}
 
         {message.safetyMessage && (
           <div className="soft-warning">{message.safetyMessage}</div>
@@ -161,18 +176,12 @@ function AiBubble({
           <div className="chat-recommendations">
             <div className="chat-rec-head">
               <strong>我会先看这三杯</strong>
-              <span>第一杯更贴合你刚才的描述</span>
             </div>
             {recommendations.map((candidate, index) => (
               <RecommendationMiniCard
                 key={candidate.id}
                 candidate={candidate}
                 isPrimary={index === 0}
-                reason={
-                  index === 0
-                    ? message.recommendation?.reason
-                    : undefined
-                }
                 onSelect={() => onSelectRecommendation(index)}
               />
             ))}
@@ -268,7 +277,12 @@ export function ChatPanel({
 
       <div className="chat-messages-area">
         {!hasMessages && !isThinking && (
-          <ExamplesBar onPick={setText} disabled={isThinking} />
+          <>
+            <div className="chat-companion">
+              <ListeningGlass state="thinking" liquidTone="citrus" />
+            </div>
+            <ExamplesBar onPick={setText} disabled={isThinking} />
+          </>
         )}
 
         {messages.map((msg) =>
@@ -281,21 +295,6 @@ export function ChatPanel({
               onSelectRecommendation={onSelectRecommendation}
             />
           )
-        )}
-
-        {isThinking && (
-          <div className="chat-message ai-message">
-            <div className="chat-avatar ai-avatar">
-              <ListeningGlass state="thinking" liquidTone="citrus" />
-            </div>
-            <div className="chat-bubble ai-bubble thinking-bubble">
-              <span className="thinking-dots">
-                <span>.</span>
-                <span>.</span>
-                <span>.</span>
-              </span>
-            </div>
-          </div>
         )}
 
         <div ref={bottomRef} />

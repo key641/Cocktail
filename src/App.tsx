@@ -31,6 +31,8 @@ function nextMessageId() {
   return `msg-${++messageIdCounter}`;
 }
 
+const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL ?? "";
+
 /* ------------------------------------------------------------------ */
 /*  Network helpers                                                    */
 /* ------------------------------------------------------------------ */
@@ -38,7 +40,7 @@ function nextMessageId() {
 async function parseIngredientsWithFallback(text: string) {
   if (!text.trim()) return { ingredients: [], unknown: [] };
   try {
-    const response = await fetch("/api/parse-ingredients", {
+    const response = await fetch(`${API_BASE}/api/parse-ingredients`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text })
@@ -55,7 +57,7 @@ async function parseAgentRequestWithFallback(text: string): Promise<{
   safety: AlcoholSafetyResult;
 }> {
   try {
-    const response = await fetch("/api/ai/parse-request", {
+    const response = await fetch(`${API_BASE}/api/ai/parse-request`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text })
@@ -193,7 +195,7 @@ export default function App() {
     const thinkingSteps: ThinkingStep[] = [];
 
     try {
-      const response = await fetch("/api/agent/chat/stream", {
+      const response = await fetch(`${API_BASE}/api/agent/chat/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text, session: agentSession })

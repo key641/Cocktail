@@ -10,15 +10,20 @@ type ConnectionReport = {
   overall: "ok" | "degraded" | "fail";
   checks: CheckItem[];
   timestamp: number;
+  llmRequest?: string;
+  llmReply?: string;
+  llmError?: string;
 };
 
 function createChecks(): CheckItem[] {
   return [
     { label: "后端可达", status: "pending", detail: "" },
     { label: "Agent 状态", status: "pending", detail: "" },
-    { label: "LLM 连通", status: "pending", detail: "" },
+    { label: "LLM 测试", status: "pending", detail: "" },
   ];
 }
+
+const TEST_MESSAGE = "请用一句话介绍自己，并推荐一杯经典的鸡尾酒。";
 
 async function runConnectionCheck(apiBase: string): Promise<ConnectionReport> {
   const checks = createChecks();
@@ -36,7 +41,6 @@ async function runConnectionCheck(apiBase: string): Promise<ConnectionReport> {
   } catch (e) {
     checks[0].status = "fail";
     checks[0].detail = e instanceof Error ? e.message : "无法连接";
-    // If backend is unreachable, skip remaining checks
     return { overall: "fail", checks, timestamp: Date.now() };
   }
 
@@ -48,31 +52,37 @@ async function runConnectionCheck(apiBase: string): Promise<ConnectionReport> {
     checks[1].status = data.hasOpenAIClient ? "ok" : "fail";
     checks[1].detail = [
       `模型: ${data.model}`,
-      `API风格: ${data.apiStyle}`,
-      `baseUrl: ${data.baseUrlType}`,
+      `API 风格: ${data.apiStyle}`,
+      `Base URL: ${data.baseUrlType}`,
       data.hasFallback ? `备用: ${data.fallbackModel}` : "无备用",
-    ].join(" | ");
+    ].join("  |  ");
   } catch (e) {
     checks[1].status = "fail";
     checks[1].detail = e instanceof Error ? e.message : "状态查询失败";
   }
 
-  // Check 3: LLM connectivity (simple test)
+  // Check 3: Real LLM test
   checks[2].status = "checking";
+  let llmRequest: string | undefined;
+  let llmReply: string | undefined;
+  let llmError: string | undefined;
+
   try {
     const res = await fetch(`${apiBase}/api/openai-test`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: "ping" }),
+      body: JSON.stringify({ text: TEST_MESSAGE }),
     });
     const data = await res.json();
     checks[2].status = data.ok ? "ok" : "fail";
-    checks[2].detail = data.ok
-      ? `响应: ${data.reply?.slice(0, 60) ?? ""}`
-      : (data.error ?? "未知错误");
+    llmRequest = data.request ?? TEST_MESSAGE;
+    llmReply = data.reply;
+    llmError = data.error;
+    checks[2].detail = data.ok ? "LLM 响应成功" : (data.error ?? "未知错误");
   } catch (e) {
     checks[2].status = "fail";
-    checks[2].detail = e instanceof Error ? e.message : "LLM 测试失败";
+    llmError = e instanceof Error ? e.message : "LLM 测试失败";
+    checks[2].detail = llmError;
   }
 
   const overall =
@@ -80,7 +90,7 @@ async function runConnectionCheck(apiBase: string): Promise<ConnectionReport> {
     : checks.some((c) => c.status === "ok") ? "degraded"
     : "fail";
 
-  return { overall, checks, timestamp: Date.now() };
+  return { overall, checks, timestamp: Date.now(), llmRequest, llmReply, llmError };
 }
 
 function statusIcon(status: CheckItem["status"]) {
@@ -118,12 +128,12 @@ export default function ConnectionStatus() {
 
   return (
     <>
-      {/* Trigger icon - top right corner */}
+      {/* Trigger icon */}
       <button
         className="connection-status-trigger"
         onClick={handleCheck}
         aria-label="测试连接"
-        title="测试后端连接"
+        title="测试后端和 LLM 连接"
       >
         {"\u{1F50C}"}
         {report && (
@@ -137,7 +147,16 @@ export default function ConnectionStatus() {
           <div className="connection-modal" onClick={(e) => e.stopPropagation()}>
             <div className="connection-modal-header">
               <h3>{"\u{1F50C} 连接诊断"}</h3>
-              <button onClick={() => setOpen(false)}>{"\u2715"}</button>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={handleCheck}
+                  disabled={loading}
+                  style={{ fontSize: 14, color: "#b8b0a0" }}
+                >
+                  {"\u{1F504}"}
+                </button>
+                <button onClick={() => setOpen(false)}>{"\u2715"}</button>
+              </div>
             </div>
 
             <div className="connection-modal-body">
@@ -173,6 +192,26 @@ export default function ConnectionStatus() {
                       </li>
                     ))}
                   </ul>
+
+                  {/* LLM conversation display */}
+                  {report.llmRequest && (
+                    <div className="llm-chat-bubble user-bubble">
+                      <div className="llm-chat-label">{"\u{1F464} 发送"}</div>
+                      <p>{report.llmRequest}</p>
+                    </div>
+                  )}
+                  {report.llmReply && (
+                    <div className="llm-chat-bubble ai-bubble">
+                      <div className="llm-chat-label">{"\u{1F916} LLM 回复"}</div>
+                      <p>{report.llmReply}</p>
+                    </div>
+                  )}
+                  {report.llmError && (
+                    <div className="llm-chat-bubble error-bubble">
+                      <div className="llm-chat-label">{"\u26A0\uFE0F"} 错误</div>
+                      <p>{report.llmError}</p>
+                    </div>
+                  )}
 
                   <small className="connection-timestamp">
                     {new Date(report.timestamp).toLocaleTimeString()}

@@ -47,6 +47,7 @@ button {
 }
 
 .phone-frame {
+  position: relative;
   width: min(100%, 390px);
   height: min(844px, calc(100vh - 40px));
   min-height: 680px;
@@ -2529,4 +2530,40 @@ input[type="range"] {
 .connection-timestamp {
   color: #5a5450;
   font-size: 11px;
+}
+
+
+.llm-chat-bubble {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.llm-chat-label {
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #8a8478;
+}
+.llm-chat-bubble p {
+  margin: 0;
+  color: #d8d0c0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.llm-chat-bubble.user-bubble {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.llm-chat-bubble.ai-bubble {
+  background: rgba(155,184,124,0.1);
+  border: 1px solid rgba(155,184,124,0.15);
+}
+.llm-chat-bubble.error-bubble {
+  background: rgba(224,85,85,0.1);
+  border: 1px solid rgba(224,85,85,0.2);
+}
+.llm-chat-bubble.error-bubble p {
+  color: #e05555;
 }

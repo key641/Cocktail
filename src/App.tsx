@@ -443,8 +443,8 @@ function buildLocalFallbackBundle(result: ReturnType<typeof buildAgentRecommenda
 
   return (
     <main className="app-shell">
-      <ConnectionStatus />
       <div className="phone-frame">
+        <ConnectionStatus />
         {screen === "home" && (
           <Home
             onChat={() => setScreen("chat")}

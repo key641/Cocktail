@@ -230,7 +230,7 @@ export const cocktailVisuals: Record<string, CocktailVisualSpec> = {
       hasIce: false,
       iceStyle: "none",
       foamLevel: "low",
-      garnish: ["lemon_wheel"],
+      garnish: ["lemon_peel"],
       rimStyle: "none",
       straw: false,
       bubbleLevel: "high"
@@ -460,7 +460,7 @@ export const cocktailVisuals: Record<string, CocktailVisualSpec> = {
       hasIce: true,
       iceStyle: "crushed",
       foamLevel: "none",
-      garnish: ["lime_wedge"],
+      garnish: ["lemon_wheel", "blackberry"],
       rimStyle: "none",
       straw: true,
       bubbleLevel: "none"
@@ -484,7 +484,7 @@ export const cocktailVisuals: Record<string, CocktailVisualSpec> = {
       hasIce: false,
       iceStyle: "none",
       foamLevel: "high",
-      garnish: [],
+      garnish: ["bitters_drops"],
       rimStyle: "none",
       straw: false,
       bubbleLevel: "none"
@@ -496,7 +496,7 @@ export const cocktailVisuals: Record<string, CocktailVisualSpec> = {
       hasIce: true,
       iceStyle: "large_cube",
       foamLevel: "low",
-      garnish: [],
+      garnish: ["ginger_slice"],
       rimStyle: "none",
       straw: false,
       bubbleLevel: "none"
@@ -508,7 +508,7 @@ export const cocktailVisuals: Record<string, CocktailVisualSpec> = {
       hasIce: false,
       iceStyle: "none",
       foamLevel: "none",
-      garnish: ["lemon_wheel"],
+      garnish: ["lemon_peel"],
       rimStyle: "none",
       straw: false,
       bubbleLevel: "none"
@@ -521,7 +521,7 @@ export const cocktailVisuals: Record<string, CocktailVisualSpec> = {
       hasIce: false,
       iceStyle: "none",
       foamLevel: "medium",
-      garnish: [],
+      garnish: ["passion_fruit"],
       rimStyle: "none",
       straw: false,
       bubbleLevel: "none"
@@ -545,7 +545,7 @@ export const cocktailVisuals: Record<string, CocktailVisualSpec> = {
       hasIce: true,
       iceStyle: "cube",
       foamLevel: "low",
-      garnish: [],
+      garnish: ["basil"],
       rimStyle: "none",
       straw: false,
       bubbleLevel: "none"
@@ -593,7 +593,7 @@ export const cocktailVisuals: Record<string, CocktailVisualSpec> = {
       hasIce: true,
       iceStyle: "cube",
       foamLevel: "low",
-      garnish: ["lime_wedge"],
+      garnish: ["chili"],
       rimStyle: "salt",
       straw: false,
       bubbleLevel: "none"

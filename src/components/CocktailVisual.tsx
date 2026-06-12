@@ -11,11 +11,18 @@ type CocktailVisualProps = {
 
 const garnishLabels: Record<GarnishType, string> = {
   mint: "薄荷",
+  basil: "罗勒",
   lime_wedge: "青柠角",
   lemon_wheel: "柠檬片",
+  lemon_peel: "柠檬皮",
   orange_peel: "橙皮",
   orange_slice: "橙片",
   cherry: "樱桃",
+  blackberry: "黑莓",
+  passion_fruit: "百香果",
+  ginger_slice: "姜片",
+  chili: "辣椒",
+  bitters_drops: "苦精滴",
   olive: "橄榄",
   coffee_beans: "咖啡豆"
 };
@@ -227,6 +234,17 @@ function Garnishes({ garnishes }: { garnishes: GarnishType[] }) {
             </g>
           );
         }
+        if (garnish === "basil") {
+          return (
+            <g key={`${garnish}-${index}`} transform="translate(76 50) rotate(-18)">
+              <title>{label}</title>
+              <path className="basil-stem" d="M18 38 C21 24 20 12 17 0" />
+              <ellipse className="basil-leaf" cx="10" cy="13" rx="9" ry="16" transform="rotate(-24 10 13)" />
+              <ellipse className="basil-leaf" cx="25" cy="17" rx="9" ry="15" transform="rotate(28 25 17)" />
+              <ellipse className="basil-leaf" cx="17" cy="3" rx="8" ry="13" transform="rotate(-4 17 3)" />
+            </g>
+          );
+        }
         if (garnish === "lime_wedge") {
           return (
             <g key={`${garnish}-${index}`} transform="translate(148 57) rotate(18)">
@@ -245,6 +263,14 @@ function Garnishes({ garnishes }: { garnishes: GarnishType[] }) {
             </g>
           );
         }
+        if (garnish === "lemon_peel") {
+          return (
+            <g key={`${garnish}-${index}`} transform="translate(146 70)">
+              <title>{label}</title>
+              <path className="lemon-peel" d="M0 0 C22 8 0 26 20 36" />
+            </g>
+          );
+        }
         if (garnish === "orange_peel") {
           return (
             <g key={`${garnish}-${index}`} transform="translate(146 70)">
@@ -259,6 +285,57 @@ function Garnishes({ garnishes }: { garnishes: GarnishType[] }) {
               <title>{label}</title>
               <path className="cherry-stem" d="M10 4 C16 -8 26 -8 31 -18" />
               <circle className="cherry" cx="8" cy="10" r="8" />
+            </g>
+          );
+        }
+        if (garnish === "blackberry") {
+          return (
+            <g key={`${garnish}-${index}`} transform="translate(96 75)">
+              <title>{label}</title>
+              <circle className="blackberry" cx="0" cy="0" r="5" />
+              <circle className="blackberry" cx="8" cy="1" r="5" />
+              <circle className="blackberry" cx="4" cy="-7" r="5" />
+              <circle className="blackberry" cx="4" cy="8" r="5" />
+            </g>
+          );
+        }
+        if (garnish === "passion_fruit") {
+          return (
+            <g key={`${garnish}-${index}`} transform="translate(142 72) rotate(10)">
+              <title>{label}</title>
+              <ellipse className="passion-fruit-shell" cx="0" cy="0" rx="18" ry="12" />
+              <ellipse className="passion-fruit-pulp" cx="0" cy="0" rx="13" ry="8" />
+              <circle className="passion-fruit-seed" cx="-5" cy="-1" r="1.8" />
+              <circle className="passion-fruit-seed" cx="1" cy="3" r="1.8" />
+              <circle className="passion-fruit-seed" cx="6" cy="-3" r="1.8" />
+            </g>
+          );
+        }
+        if (garnish === "ginger_slice") {
+          return (
+            <g key={`${garnish}-${index}`} transform="translate(98 72) rotate(-12)">
+              <title>{label}</title>
+              <ellipse className="ginger-slice" cx="0" cy="0" rx="14" ry="8" />
+              <path className="ginger-line" d="M-8 -1 C-2 -5 6 -4 10 1" />
+            </g>
+          );
+        }
+        if (garnish === "chili") {
+          return (
+            <g key={`${garnish}-${index}`} transform="translate(146 66) rotate(22)">
+              <title>{label}</title>
+              <path className="chili" d="M0 4 C16 -5 32 1 40 15 C26 17 10 14 0 4Z" />
+              <path className="chili-stem" d="M1 4 C-4 1 -6 -3 -7 -7" />
+            </g>
+          );
+        }
+        if (garnish === "bitters_drops") {
+          return (
+            <g key={`${garnish}-${index}`} transform="translate(108 86)">
+              <title>{label}</title>
+              <circle className="bitters-drop" cx="0" cy="0" r="2.8" />
+              <circle className="bitters-drop" cx="12" cy="-2" r="2.8" />
+              <circle className="bitters-drop" cx="24" cy="1" r="2.8" />
             </g>
           );
         }

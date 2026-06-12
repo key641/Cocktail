@@ -26,6 +26,23 @@ describe("CocktailVisual", () => {
     expect(markup).toContain("<svg");
   });
 
+  it("renders extended garnish atoms", () => {
+    const markup = renderToStaticMarkup(
+      <CocktailVisual
+        spec={{
+          ...baseSpec,
+          foamLevel: "high",
+          garnish: ["basil", "blackberry", "passion_fruit", "ginger_slice", "chili", "bitters_drops", "lemon_peel"]
+        }}
+        title="Atom preview"
+      />
+    );
+
+    for (const label of ["罗勒", "黑莓", "百香果", "姜片", "辣椒", "苦精滴", "柠檬皮"]) {
+      expect(markup).toContain(label);
+    }
+  });
+
   it("renders rim and no-ice states from visual spec", () => {
     const markup = renderToStaticMarkup(
       <CocktailVisual

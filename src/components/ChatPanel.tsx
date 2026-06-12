@@ -1,5 +1,6 @@
 ﻿import { useState, useRef, useEffect } from "react";
 import { CocktailVisual } from "./CocktailVisual";
+import { FeedbackEntry } from "./FeedbackEntry";
 import { ListeningGlass } from "./ListeningGlass";
 import { useTypewriter } from "../hooks/useTypewriter";
 import { getCocktailVisualSpec } from "../data/cocktailVisuals";
@@ -193,12 +194,14 @@ function AiBubble({
         )}
 
         {!isPendingOnly && text && (
-          <div className="chat-bubble ai-bubble">
-            <p className={isTyping ? "typing-cursor" : ""}>
-              {text}
-              {isTyping && <span className="cursor-blink">|</span>}
-            </p>
-          </div>
+          <>
+            <div className="chat-bubble ai-bubble">
+              <p className={isTyping ? "typing-cursor" : ""}>
+                {text}
+                {isTyping && <span className="cursor-blink">|</span>}
+              </p>
+            </div>
+          </>
         )}
 
         {message.safetyMessage && (
@@ -220,6 +223,8 @@ function AiBubble({
             ))}
           </div>
         )}
+
+        {!isPendingOnly && !isTyping && text && <FeedbackEntry context="ai_reply" messageId={message.id} compact />}
       </div>
     </div>
   );

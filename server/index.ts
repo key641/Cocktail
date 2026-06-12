@@ -1,5 +1,7 @@
 ﻿import express from "express";
 import { ingredients } from "../src/data/ingredients";
+import { appendFile, mkdir, readFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 import { parseIngredientsLocally } from "../src/domain/ingredientParser";
 import { createOpenAILlmClient, createFallbackClient } from "./ai/openaiClient";
 import { runLlmHealthCheck } from "./ai/llmDiagnostics";
@@ -17,6 +19,8 @@ const openAIModel = process.env.OPENAI_MODEL_FAST ?? "gpt-5-mini";
 const openAIBaseUrl = process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1/responses";
 const openAIApiStyle = process.env.OPENAI_API_STYLE === "chat_completions" ? "chat_completions" : "responses";
 const aiTimeoutMs = Number(process.env.AI_TIMEOUT_MS ?? 8000);
+const feedbackLogPath = resolve(process.env.FEEDBACK_LOG_PATH ?? "server/data/feedback.jsonl");
+const feedbackAdminToken = process.env.FEEDBACK_ADMIN_TOKEN;
 const fallbackApiKey = process.env.FALLBACK_OPENAI_API_KEY;
 const hasFallback = Boolean(apiKey && fallbackApiKey);
 let openAIClient: ReturnType<typeof createOpenAILlmClient> | undefined;
@@ -72,6 +76,72 @@ app.get("/api/agent/status", (_request, response) => {
     fallbackModel: hasFallback ? (process.env.FALLBACK_OPENAI_MODEL ?? openAIModel) : undefined,
     fallbackBaseUrl: hasFallback ? (process.env.FALLBACK_OPENAI_BASE_URL ?? openAIBaseUrl) : undefined,
   });
+});
+
+function cleanFeedbackText(value: unknown, maxLength: number) {
+  return String(value ?? "").replace(/\s+/g, " ").trim().slice(0, maxLength);
+}
+
+app.post("/api/feedback", async (request, response) => {
+  const context = request.body?.context === "ai_reply" ? "ai_reply" : "global";
+  const tone = ["like", "dislike", "general"].includes(request.body?.tone) ? request.body.tone : "general";
+  const relationship = ["knows_me", "not_yet", "prefer_not"].includes(request.body?.relationship) ? request.body.relationship : undefined;
+  const text = cleanFeedbackText(request.body?.text, 2000);
+
+  const entry = {
+    id: `feedback-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    createdAt: new Date().toISOString(),
+    context,
+    tone,
+    relationship,
+    text,
+    messageId: cleanFeedbackText(request.body?.messageId, 120) || undefined,
+    pageUrl: cleanFeedbackText(request.body?.pageUrl, 500) || undefined,
+    userAgent: cleanFeedbackText(request.get("user-agent"), 500) || undefined,
+    ip: request.ip
+  };
+
+  try {
+    await mkdir(dirname(feedbackLogPath), { recursive: true });
+    await appendFile(feedbackLogPath, `${JSON.stringify(entry)}\n`, "utf8");
+    response.status(201).json({ ok: true, id: entry.id });
+  } catch (error) {
+    response.status(500).json({
+      ok: false,
+      error: error instanceof Error ? error.message : "Failed to save feedback."
+    });
+  }
+});
+
+app.get("/api/feedback", async (request, response) => {
+  const token = String(request.get("x-feedback-token") ?? request.query.token ?? "");
+  if (!feedbackAdminToken || token !== feedbackAdminToken) {
+    response.status(403).json({ ok: false, error: "Feedback access denied." });
+    return;
+  }
+
+  const limit = Math.min(Math.max(Number(request.query.limit ?? 100), 1), 500);
+
+  try {
+    const raw = await readFile(feedbackLogPath, "utf8");
+    const feedback = raw
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .slice(-limit)
+      .map((line) => JSON.parse(line));
+
+    response.json({ ok: true, feedback });
+  } catch (error) {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") {
+      response.json({ ok: true, feedback: [] });
+      return;
+    }
+
+    response.status(500).json({
+      ok: false,
+      error: error instanceof Error ? error.message : "Failed to read feedback."
+    });
+  }
 });
 
 app.post("/api/openai-test", async (request, response) => {

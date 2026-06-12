@@ -210,11 +210,11 @@ export const cocktails: Cocktail[] = [
     ingredients: [
       { ingredientId: "tequila", amount: "45 ml" },
       { ingredientId: "orange-juice", amount: "120 ml" },
-      { ingredientId: "simple-syrup", amount: "10 ml" }
+      { ingredientId: "grenadine", amount: "10 ml" }
     ],
-    steps: ["杯中加冰，倒入龙舌兰和橙汁。", "轻轻搅拌。", "沿杯壁加入少量糖浆形成渐层。"],
+    steps: ["杯中加冰，倒入龙舌兰和橙汁。", "轻轻搅拌。", "沿杯壁加入少量红石榴糖浆形成渐层。"],
     tasteProfile: { sweet: 4, sour: 1, bitter: 0, fresh: 3, strong: 1, fruity: 5, herbal: 0, bubbly: 0 },
-    bartenderTip: "糖浆沿杯壁慢慢倒，颜色分层会更自然。"
+    bartenderTip: "红石榴糖浆沿杯壁慢慢倒，颜色分层会更自然。"
   },
   {
     id: "whiskey-sour",
@@ -777,7 +777,8 @@ export const cocktails: Cocktail[] = [
       { ingredientId: "pisco", amount: "60 ml" },
       { ingredientId: "lemon-juice", amount: "30 ml" },
       { ingredientId: "simple-syrup", amount: "20 ml" },
-      { ingredientId: "egg-white", amount: "1 个蛋白" }
+      { ingredientId: "egg-white", amount: "1 个蛋白" },
+      { ingredientId: "angostura-bitters", amount: "3 dashes" }
     ],
     steps: ["所有材料先不加冰干摇 10 秒，让蛋白起泡。", "加冰再摇 10 秒。", "滤入冰镇古典杯。", "滴 3 滴苦精在泡沫上。"],
     tasteProfile: { sweet: 3, sour: 5, bitter: 1, fresh: 4, strong: 3, fruity: 1, herbal: 1, bubbly: 0 },
@@ -797,7 +798,8 @@ export const cocktails: Cocktail[] = [
       { ingredientId: "scotch", amount: "60 ml (混合)" },
       { ingredientId: "lemon-juice", amount: "22 ml" },
       { ingredientId: "honey-syrup", amount: "22 ml" },
-      { ingredientId: "ginger-beer", amount: "少许" }
+      { ingredientId: "ginger-root", amount: "2-3 片" },
+      { ingredientId: "scotch", amount: "7.5 ml (Islay float)" }
     ],
     steps: ["调制姜汁：鲜姜榨汁过滤，与蜂蜜糖浆 1:1 混合。", "混合苏格兰威士忌、柠檬汁、姜蜜糖浆，加冰摇匀。", "滤入装冰的古典杯。", "表面浮一小勺泥煤威士忌增烟熏感。"],
     tasteProfile: { sweet: 3, sour: 3, bitter: 1, fresh: 3, strong: 3, fruity: 0, herbal: 2, bubbly: 0 },
@@ -835,9 +837,9 @@ export const cocktails: Cocktail[] = [
     glass: "coupe",
     garnish: "半颗百香果",
     ingredients: [
-      { ingredientId: "vodka", amount: "45 ml" },
+      { ingredientId: "vanilla-vodka", amount: "45 ml" },
+      { ingredientId: "passion-fruit-liqueur", amount: "15 ml" },
       { ingredientId: "passion-fruit-puree", amount: "30 ml" },
-      { ingredientId: "vanilla-syrup", amount: "15 ml" },
       { ingredientId: "lime-juice", amount: "15 ml" },
       { ingredientId: "sparkling-wine", amount: "60 ml (side)" }
     ],
@@ -899,7 +901,7 @@ export const cocktails: Cocktail[] = [
     ingredients: [
       { ingredientId: "mezcal", amount: "22 ml" },
       { ingredientId: "aperol", amount: "22 ml" },
-      { ingredientId: "green-chartreuse", amount: "22 ml" },
+      { ingredientId: "yellow-chartreuse", amount: "22 ml" },
       { ingredientId: "lime-juice", amount: "22 ml" }
     ],
     steps: ["四等分所有材料加入摇壶。", "加冰摇 12 秒。", "滤入冰镇鸡尾酒杯。"],

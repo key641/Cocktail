@@ -75,8 +75,32 @@ npm run preview
 - `OPENAI_API_STYLE`：`responses` 或 `chat_completions`
 - `AI_TIMEOUT_MS`：AI 请求超时时长，默认 `8000`
 - `PORT`：后端服务端口，默认 `4174`
+- `FEEDBACK_LOG_PATH`：用户反馈 JSONL 保存路径，默认 `server/data/feedback.jsonl`
+- `FEEDBACK_ADMIN_TOKEN`：查看反馈用的管理员 token；未配置或 token 不匹配时无法读取反馈
 
-## 7. 运行示例
+## 7. 用户反馈
+
+前端的“意见”和 AI 回复后的“有用 / 不准”会提交到：
+
+```bash
+POST /api/feedback
+```
+
+后端会把反馈逐行写入 `FEEDBACK_LOG_PATH` 指定的 JSONL 文件。默认路径已加入 `.gitignore`，避免误提交用户反馈。
+
+配置 `FEEDBACK_ADMIN_TOKEN` 后，可以读取最近反馈：
+
+```bash
+curl "http://127.0.0.1:4174/api/feedback?token=你的token"
+```
+
+也可以限制条数：
+
+```bash
+curl "http://127.0.0.1:4174/api/feedback?token=你的token&limit=20"
+```
+
+## 8. 运行示例
 
 ```bash
 # 安装依赖

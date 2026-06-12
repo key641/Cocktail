@@ -1,4 +1,4 @@
-type BottomNavScreen = "home" | "menu";
+type BottomNavScreen = "home" | "menu" | "atoms";
 
 type BottomNavProps = {
   active: BottomNavScreen;
@@ -10,7 +10,7 @@ type Tab = { screen: BottomNavScreen; label: string };
 const tabs: Tab[] = [
   { screen: "home", label: "首页" },
   { screen: "menu", label: "酒单" },
-  { screen: "home", label: "收藏" },
+  { screen: "atoms", label: "SVG" },
   { screen: "home", label: "我的" },
 ];
 
@@ -22,7 +22,7 @@ export function BottomNav({ active, onNavigate }: BottomNavProps) {
         return (
           <button
             key={tab.label}
-            className={isActive ? "active" : ""}
+            className={active === tab.screen ? "active" : ""}
             type="button"
             onClick={() => onNavigate(tab.screen)}
           >

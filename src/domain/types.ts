@@ -30,11 +30,18 @@ export type IceStyle = "none" | "cube" | "large_cube" | "crushed";
 export type FoamLevel = "none" | "low" | "medium" | "high";
 export type GarnishType =
   | "mint"
+  | "basil"
   | "lime_wedge"
   | "lemon_wheel"
+  | "lemon_peel"
   | "orange_peel"
   | "orange_slice"
   | "cherry"
+  | "blackberry"
+  | "passion_fruit"
+  | "ginger_slice"
+  | "chili"
+  | "bitters_drops"
   | "olive"
   | "coffee_beans";
 export type RimStyle = "none" | "salt" | "sugar";

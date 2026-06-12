@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ChatPanel, type ChatMessage, type ThinkingStep } from "./components/ChatPanel";
 import { CocktailCard } from "./components/CocktailCard";
 import { ExplorePanel, type ExploreChoices } from "./components/ExplorePanel";
+import { FeedbackEntry } from "./components/FeedbackEntry";
 import { FollowAlongView } from "./components/FollowAlongView";
 import { Home } from "./components/Home";
 import { IngredientPanel } from "./components/IngredientPanel";
@@ -9,6 +10,7 @@ import { BottomNav } from "./components/BottomNav";
 import { MenuView } from "./components/MenuView";
 import { ResultView } from "./components/ResultView";
 import { ShareCardView } from "./components/ShareCardView";
+import { SvgAtomGallery } from "./components/SvgAtomGallery";
 import ConnectionStatus from "./components/ConnectionStatus";
 import { cocktails } from "./data/cocktails";
 import { getIngredientName } from "./data/ingredients";
@@ -23,10 +25,10 @@ import type { AgentRecommendationBundle, AgentSessionState, Citation, TrustSigna
 import type { CocktailRecommendation, TasteProfile } from "./domain/types";
 import { rankForExploration } from "./domain/recommendation";
 
-type Screen = "home" | "chat" | "explore" | "ingredients" | "menu" | "result" | "follow" | "share";
+type Screen = "home" | "chat" | "explore" | "ingredients" | "menu" | "atoms" | "result" | "follow" | "share";
 
 function isBottomNavScreen(s: Screen): boolean {
-  return s === "home" || s === "menu";
+  return s === "home" || s === "menu" || s === "atoms";
 }
 
 const defaultTasteProfile: TasteProfile = {
@@ -538,7 +540,10 @@ function buildLocalFallbackBundle(
   return (
     <main className="app-shell">
       <div className="phone-frame">
-        <ConnectionStatus />
+        <div className="top-tool-cluster">
+          <FeedbackEntry context="global" />
+          <ConnectionStatus />
+        </div>
         {screen === "home" && (
           <Home
             onChat={() => navigateTo("chat")}
@@ -560,6 +565,9 @@ function buildLocalFallbackBundle(
         )}
         {screen === "menu" && (
           <MenuView cocktails={cocktails} onBack={() => navigateTo("home")} onSelect={showMenuCocktail} />
+        )}
+        {screen === "atoms" && (
+          <SvgAtomGallery onBack={() => navigateTo("home")} />
         )}
         {screen === "ingredients" && (
           <IngredientPanel
@@ -601,14 +609,14 @@ function buildLocalFallbackBundle(
             onRetake={() => navigateTo("follow")}
           />
         )}
-      {isBottomNavScreen(screen) && (
+        {isBottomNavScreen(screen) && (
           <BottomNav
-            active={screen === "menu" ? "menu" : "home"}
+            active={screen === "menu" ? "menu" : screen === "atoms" ? "atoms" : "home"}
             onNavigate={(s: string) => navigateTo(s as Screen)}
           />
         )}
       </div>
-        {screen === "home" && <CocktailCard cocktail={cocktails[5]} ambient />}
+      {screen === "home" && <CocktailCard cocktail={cocktails[5]} ambient />}
     </main>
   );
 }

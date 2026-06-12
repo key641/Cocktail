@@ -20,4 +20,14 @@ describe("cocktail visual mappings", () => {
       }
     }
   });
+
+  it("keeps signature garnishes aligned with the current menu", () => {
+    expect(cocktailVisuals["pisco-sour"].garnish).toContain("bitters_drops");
+    expect(cocktailVisuals["penicillin"].garnish).toContain("ginger_slice");
+    expect(cocktailVisuals["pornstar-martini"].garnish).toContain("passion_fruit");
+    expect(cocktailVisuals["gin-basil-smash"].garnish).toContain("basil");
+    expect(cocktailVisuals["bramble"].garnish).toContain("blackberry");
+    expect(cocktailVisuals["naked-and-famous"].drinkColor).toBe("#E8C060");
+    expect(cocktailVisuals["sazerac"].garnish).toContain("lemon_peel");
+  });
 });

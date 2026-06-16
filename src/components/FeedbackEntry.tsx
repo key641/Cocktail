@@ -21,6 +21,15 @@ type StoredFeedback = {
 };
 
 const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL ?? "";
+const FEEDBACK_TOPICS = [
+  { id: "wrong_recommendation", label: "推荐不准", helper: "口味、场景或强度没对上" },
+  { id: "recipe_issue", label: "酒单有误", helper: "配方、材料、步骤或官方口径" },
+  { id: "hard_to_use", label: "不好操作", helper: "入口、流程、按钮或文案卡住了" },
+  { id: "visual_issue", label: "视觉别扭", helper: "排版、图标、SVG 或动效不舒服" },
+  { id: "new_idea", label: "想加内容", helper: "新酒、知识点或玩法建议" }
+] as const;
+
+type FeedbackTopic = (typeof FEEDBACK_TOPICS)[number]["id"];
 
 function saveFeedback(feedback: StoredFeedback) {
   const key = "cocktail-feedback";
@@ -48,12 +57,13 @@ export function FeedbackEntry({ context, messageId, compact = false }: FeedbackE
   const [open, setOpen] = useState(false);
   const [tone, setTone] = useState<FeedbackTone | null>(null);
   const [relationship, setRelationship] = useState<Relationship | null>(null);
+  const [topics, setTopics] = useState<FeedbackTopic[]>([]);
   const [text, setText] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [delivery, setDelivery] = useState<"server" | "local" | null>(null);
 
-  async function submit(nextTone = tone) {
+  async function submit(nextTone = tone, nextTopics = topics) {
     if (!nextTone) return;
 
     const feedback: StoredFeedback = {
@@ -62,7 +72,7 @@ export function FeedbackEntry({ context, messageId, compact = false }: FeedbackE
       messageId,
       tone: nextTone,
       relationship: relationship ?? undefined,
-      text: text.trim(),
+      text: formatFeedbackText(nextTopics, text),
       pageUrl: window.location.href,
       createdAt: new Date().toISOString()
     };
@@ -95,25 +105,42 @@ export function FeedbackEntry({ context, messageId, compact = false }: FeedbackE
     setSubmitted(false);
 
     if (nextTone === "like") {
-      void submit(nextTone);
+      setTopics([]);
+      setText("");
+      void submit(nextTone, []);
       return;
     }
 
     setOpen(true);
   }
 
+  function openGlobalFeedback() {
+    setTone("general");
+    setTopics([]);
+    setText("");
+    setOpen(true);
+    setSubmitted(false);
+  }
+
+  function toggleTopic(topic: FeedbackTopic) {
+    setTopics((current) => current.includes(topic) ? current.filter((item) => item !== topic) : [...current, topic]);
+  }
+
   const isDislike = tone === "dislike";
-  const title = context === "global" ? "反馈入口" : "这次回复有帮助吗？";
+  const title = context === "global" ? "问题反馈" : "这次推荐有帮到你吗？";
+  const subtitle = isDislike
+    ? "选一下哪里不对，我会更快看懂。"
+    : "告诉我你想反馈哪一类，能一句话说清也行。";
+  const placeholder = isDislike
+    ? "比如：这杯太甜了、材料不对、推荐理由牵强、卡片信息看不懂……"
+    : "比如：想增加某杯酒、某个 SVG 怪怪的、推荐流程太绕、酒单信息需要核对……";
 
   return (
     <div className={`feedback-entry ${compact ? "compact" : "floating"} ${open ? "open" : ""}`}>
       {!open && context === "global" && (
-        <button className="feedback-floating-button" type="button" onClick={() => {
-          setTone("general");
-          setOpen(true);
-          setSubmitted(false);
-        }}>
-          意见
+        <button className="feedback-floating-button" type="button" onClick={openGlobalFeedback}>
+          <span className="feedback-dot" aria-hidden="true" />
+          反馈
         </button>
       )}
 
@@ -135,9 +162,13 @@ export function FeedbackEntry({ context, messageId, compact = false }: FeedbackE
       {open && (
         <div className="feedback-panel">
           <div className="feedback-panel-head">
-            <strong>{isDislike ? "这条回复哪里翻车了？" : title}</strong>
+            <div>
+              <span>FEEDBACK</span>
+              <strong>{isDislike ? "这条推荐哪里翻车了？" : title}</strong>
+            </div>
             <button type="button" aria-label="关闭反馈" onClick={() => setOpen(false)}>×</button>
           </div>
+          <p className="feedback-subtitle">{subtitle}</p>
 
           {isDislike && (
             <div className="feedback-probe">
@@ -164,10 +195,24 @@ export function FeedbackEntry({ context, messageId, compact = false }: FeedbackE
             </div>
           )}
 
+          <div className="feedback-topic-grid" aria-label="反馈类型">
+            {FEEDBACK_TOPICS.map((topic) => (
+              <button
+                className={topics.includes(topic.id) ? "selected" : ""}
+                key={topic.id}
+                type="button"
+                onClick={() => toggleTopic(topic.id)}
+              >
+                <strong>{topic.label}</strong>
+                <small>{topic.helper}</small>
+              </button>
+            ))}
+          </div>
+
           <textarea
             value={text}
             onChange={(event) => setText(event.target.value)}
-            placeholder={isDislike ? "哪里不准、哪里难用、哪杯酒被我讲歪了，都可以写。" : "功能、酒单、视觉、推荐逻辑，哪里想改都可以写。"}
+            placeholder={placeholder}
             rows={4}
           />
 
@@ -181,4 +226,17 @@ export function FeedbackEntry({ context, messageId, compact = false }: FeedbackE
       )}
     </div>
   );
+}
+
+function formatFeedbackText(topics: FeedbackTopic[], text: string) {
+  const selectedLabels = FEEDBACK_TOPICS
+    .filter((topic) => topics.includes(topic.id))
+    .map((topic) => topic.label);
+  const body = text.trim();
+
+  if (selectedLabels.length === 0) {
+    return body;
+  }
+
+  return `反馈类型：${selectedLabels.join("、")}${body ? `\n具体反馈：${body}` : ""}`;
 }

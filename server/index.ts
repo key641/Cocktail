@@ -19,8 +19,13 @@ const openAIModel = process.env.OPENAI_MODEL_FAST ?? "gpt-5-mini";
 const openAIBaseUrl = process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1/responses";
 const openAIApiStyle = process.env.OPENAI_API_STYLE === "chat_completions" ? "chat_completions" : "responses";
 const aiTimeoutMs = Number(process.env.AI_TIMEOUT_MS ?? 8000);
+const feedbackStorage = process.env.FEEDBACK_STORAGE ?? "jsonl";
 const feedbackLogPath = resolve(process.env.FEEDBACK_LOG_PATH ?? "server/data/feedback.jsonl");
 const feedbackAdminToken = process.env.FEEDBACK_ADMIN_TOKEN;
+const notionToken = process.env.NOTION_TOKEN ?? process.env.NOTION_API_KEY;
+const notionFeedbackDataSourceId = process.env.NOTION_FEEDBACK_DATA_SOURCE_ID;
+const notionFeedbackDatabaseId = process.env.NOTION_FEEDBACK_DATABASE_ID;
+const notionVersion = process.env.NOTION_VERSION ?? "2026-03-11";
 const fallbackApiKey = process.env.FALLBACK_OPENAI_API_KEY;
 const hasFallback = Boolean(apiKey && fallbackApiKey);
 let openAIClient: ReturnType<typeof createOpenAILlmClient> | undefined;
@@ -82,6 +87,71 @@ function cleanFeedbackText(value: unknown, maxLength: number) {
   return String(value ?? "").replace(/\s+/g, " ").trim().slice(0, maxLength);
 }
 
+function buildRichText(content: string) {
+  return content ? [{ text: { content: content.slice(0, 1900) } }] : [];
+}
+
+async function appendFeedbackJsonl(entry: Record<string, unknown>) {
+  await mkdir(dirname(feedbackLogPath), { recursive: true });
+  await appendFile(feedbackLogPath, `${JSON.stringify(entry)}\n`, "utf8");
+}
+
+async function createNotionFeedbackPage(entry: {
+  id: string;
+  createdAt: string;
+  context: string;
+  tone: string;
+  relationship?: string;
+  text: string;
+  messageId?: string;
+  pageUrl?: string;
+  userAgent?: string;
+  ip?: string;
+}) {
+  if (!notionToken || (!notionFeedbackDataSourceId && !notionFeedbackDatabaseId)) {
+    throw new Error("Notion feedback storage is not configured.");
+  }
+
+  const parent = notionFeedbackDataSourceId
+    ? { data_source_id: notionFeedbackDataSourceId }
+    : { database_id: notionFeedbackDatabaseId };
+
+  const response = await fetch("https://api.notion.com/v1/pages", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${notionToken}`,
+      "Content-Type": "application/json",
+      "Notion-Version": notionVersion
+    },
+    body: JSON.stringify({
+      parent,
+      properties: {
+        Name: {
+          title: [{ text: { content: `${entry.tone} · ${entry.context} · ${entry.createdAt}` } }]
+        },
+        Tone: { select: { name: entry.tone } },
+        Context: { select: { name: entry.context } },
+        Status: { select: { name: "new" } },
+        Relationship: entry.relationship ? { select: { name: entry.relationship } } : { select: null },
+        "Message ID": { rich_text: buildRichText(entry.messageId ?? "") },
+        Text: { rich_text: buildRichText(entry.text) },
+        "Page URL": entry.pageUrl ? { url: entry.pageUrl } : { url: null },
+        "Created At": { date: { start: entry.createdAt } },
+        "User Agent": { rich_text: buildRichText(entry.userAgent ?? "") },
+        IP: { rich_text: buildRichText(entry.ip ?? "") },
+        "Storage ID": { rich_text: buildRichText(entry.id) }
+      }
+    })
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Notion feedback write failed: ${response.status} ${body.slice(0, 300)}`);
+  }
+
+  return (await response.json()) as { id?: string; url?: string };
+}
+
 app.post("/api/feedback", async (request, response) => {
   const context = request.body?.context === "ai_reply" ? "ai_reply" : "global";
   const tone = ["like", "dislike", "general"].includes(request.body?.tone) ? request.body.tone : "general";
@@ -101,16 +171,39 @@ app.post("/api/feedback", async (request, response) => {
     ip: request.ip
   };
 
-  try {
-    await mkdir(dirname(feedbackLogPath), { recursive: true });
-    await appendFile(feedbackLogPath, `${JSON.stringify(entry)}\n`, "utf8");
-    response.status(201).json({ ok: true, id: entry.id });
-  } catch (error) {
-    response.status(500).json({
-      ok: false,
-      error: error instanceof Error ? error.message : "Failed to save feedback."
-    });
+  const storageResults: Record<string, unknown> = {};
+  const warnings: string[] = [];
+  const jsonlBackupEnabled = process.env.FEEDBACK_JSONL_BACKUP !== "false";
+  const shouldWriteNotion = feedbackStorage === "notion" || feedbackStorage === "both";
+  const shouldWriteJsonl = feedbackStorage === "jsonl" || feedbackStorage === "both" || (shouldWriteNotion && jsonlBackupEnabled);
+
+  if (shouldWriteJsonl) {
+    try {
+      await appendFeedbackJsonl(entry);
+      storageResults.jsonl = true;
+    } catch (error) {
+      storageResults.jsonl = false;
+      warnings.push(error instanceof Error ? error.message : "Failed to save JSONL feedback.");
+    }
   }
+
+  if (shouldWriteNotion) {
+    try {
+      const notionPage = await createNotionFeedbackPage(entry);
+      storageResults.notion = { ok: true, pageId: notionPage.id, url: notionPage.url };
+    } catch (error) {
+      storageResults.notion = { ok: false };
+      warnings.push(error instanceof Error ? error.message : "Failed to save Notion feedback.");
+    }
+  }
+
+  const saved = storageResults.jsonl === true || Boolean((storageResults.notion as { ok?: boolean } | undefined)?.ok);
+  if (!saved) {
+    response.status(500).json({ ok: false, id: entry.id, storage: storageResults, warnings });
+    return;
+  }
+
+  response.status(warnings.length > 0 ? 202 : 201).json({ ok: true, id: entry.id, storage: storageResults, warnings });
 });
 
 app.get("/api/feedback", async (request, response) => {

@@ -100,6 +100,55 @@ curl "http://127.0.0.1:4174/api/feedback?token=你的token"
 curl "http://127.0.0.1:4174/api/feedback?token=你的token&limit=20"
 ```
 
+### 7.1 接入 Notion
+
+第一阶段可以把 Notion 当作反馈收件箱。前端仍然只调用 `POST /api/feedback`，后端根据环境变量决定写到哪里。
+
+在 Notion 中创建一个数据库或 data source，并添加这些属性（名称和类型需要一致）：
+
+| 属性名 | 类型 |
+| --- | --- |
+| `Name` | Title |
+| `Tone` | Select |
+| `Context` | Select |
+| `Status` | Select |
+| `Relationship` | Select |
+| `Message ID` | Text |
+| `Text` | Text |
+| `Page URL` | URL |
+| `Created At` | Date |
+| `User Agent` | Text |
+| `IP` | Text |
+| `Storage ID` | Text |
+
+然后在 Notion 开发者后台创建 integration，复制 token，并把这个 Notion 数据库分享给该 integration。
+
+环境变量示例：
+
+```bash
+FEEDBACK_STORAGE=notion
+FEEDBACK_JSONL_BACKUP=true
+NOTION_TOKEN=secret_xxx
+NOTION_FEEDBACK_DATA_SOURCE_ID=xxx
+NOTION_VERSION=2026-03-11
+```
+
+当前已创建的 Notion 反馈 data source：
+
+```bash
+NOTION_FEEDBACK_DATA_SOURCE_ID=686ecf7a-e8a0-4177-9522-a18aa8c8c426
+```
+
+如果你的 Notion 页面仍使用 database id，也可以先用：
+
+```bash
+NOTION_FEEDBACK_DATABASE_ID=xxx
+```
+
+建议保留 `FEEDBACK_JSONL_BACKUP=true`，这样 Notion 写入失败时仍会把反馈留在本地 JSONL 里。
+
+后续要迁移到 Postgres / Supabase / Neon 时，保持前端 `POST /api/feedback` 不变，只需要在后端新增一个 Postgres writer。
+
 ## 8. 运行示例
 
 ```bash

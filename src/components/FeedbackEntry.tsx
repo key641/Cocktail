@@ -28,8 +28,16 @@ const FEEDBACK_TOPICS = [
   { id: "visual_issue", label: "视觉别扭", helper: "排版、图标、SVG 或动效不舒服" },
   { id: "new_idea", label: "想加内容", helper: "新酒、知识点或玩法建议" }
 ] as const;
+const PRAISE_TOPICS = [
+  { id: "good_recommendation", label: "推荐很准", helper: "口味、场景或理由刚好对上" },
+  { id: "recipe_helpful", label: "酒单有用", helper: "配方、材料或步骤讲清楚了" },
+  { id: "easy_to_use", label: "操作顺手", helper: "入口、流程或文案很自然" },
+  { id: "visual_nice", label: "视觉舒服", helper: "卡片、图标、SVG 或动效喜欢" },
+  { id: "worth_keeping", label: "想继续用", helper: "这个方向值得保留或加强" }
+] as const;
 
-type FeedbackTopic = (typeof FEEDBACK_TOPICS)[number]["id"];
+type FeedbackTopic = (typeof FEEDBACK_TOPICS)[number]["id"] | (typeof PRAISE_TOPICS)[number]["id"];
+type FeedbackTopicItem = { id: FeedbackTopic; label: string; helper: string };
 
 function saveFeedback(feedback: StoredFeedback) {
   const key = "cocktail-feedback";
@@ -127,13 +135,19 @@ export function FeedbackEntry({ context, messageId, compact = false }: FeedbackE
   }
 
   const isDislike = tone === "dislike";
+  const isPraise = tone === "like";
+  const visibleTopics: readonly FeedbackTopicItem[] = isPraise ? PRAISE_TOPICS : FEEDBACK_TOPICS;
   const title = context === "global" ? "问题反馈" : "这次推荐有帮到你吗？";
-  const subtitle = isDislike
-    ? "选一下哪里不对，我会更快看懂。"
-    : "告诉我你想反馈哪一类，能一句话说清也行。";
-  const placeholder = isDislike
-    ? "比如：这杯太甜了、材料不对、推荐理由牵强、卡片信息看不懂……"
-    : "比如：想增加某杯酒、某个 SVG 怪怪的、推荐流程太绕、酒单信息需要核对……";
+  const subtitle = isPraise
+    ? "收到夸夸也很有用，告诉我哪里值得保留。"
+    : isDislike
+      ? "选一下哪里不对，我会更快看懂。"
+      : "告诉我你想反馈哪一类，能一句话说清也行。";
+  const placeholder = isPraise
+    ? "比如：推荐很懂我、酒卡信息清楚、SVG 很有感觉、这个流程想保留……"
+    : isDislike
+      ? "比如：这杯太甜了、材料不对、推荐理由牵强、卡片信息看不懂……"
+      : "比如：想增加某杯酒、某个 SVG 怪怪的、推荐流程太绕、酒单信息需要核对……";
 
   return (
     <div className={`feedback-entry ${compact ? "compact" : "floating"} ${open ? "open" : ""}`}>
@@ -190,13 +204,19 @@ export function FeedbackEntry({ context, messageId, compact = false }: FeedbackE
           {tone === "general" && (
             <div className="feedback-choice-row">
               <button className={tone === "general" ? "selected" : ""} type="button">通用反馈</button>
-              <button type="button" onClick={() => setTone("like")}>想夸一下</button>
-              <button type="button" onClick={() => setTone("dislike")}>想吐槽</button>
+              <button type="button" onClick={() => {
+                setTone("like");
+                setTopics([]);
+              }}>想夸一下</button>
+              <button type="button" onClick={() => {
+                setTone("dislike");
+                setTopics([]);
+              }}>想吐槽</button>
             </div>
           )}
 
           <div className="feedback-topic-grid" aria-label="反馈类型">
-            {FEEDBACK_TOPICS.map((topic) => (
+            {visibleTopics.map((topic) => (
               <button
                 className={topics.includes(topic.id) ? "selected" : ""}
                 key={topic.id}
@@ -229,7 +249,7 @@ export function FeedbackEntry({ context, messageId, compact = false }: FeedbackE
 }
 
 function formatFeedbackText(topics: FeedbackTopic[], text: string) {
-  const selectedLabels = FEEDBACK_TOPICS
+  const selectedLabels = [...FEEDBACK_TOPICS, ...PRAISE_TOPICS]
     .filter((topic) => topics.includes(topic.id))
     .map((topic) => topic.label);
   const body = text.trim();

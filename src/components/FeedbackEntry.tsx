@@ -35,9 +35,14 @@ const PRAISE_TOPICS = [
   { id: "visual_nice", label: "视觉舒服", helper: "卡片、图标、SVG 或动效喜欢" },
   { id: "worth_keeping", label: "想继续用", helper: "这个方向值得保留或加强" }
 ] as const;
+export const FRIEND_PRESSURE_PROMPT = "你认识 641 吗？认识的话请狠狠反馈，压力她。";
 
 type FeedbackTopic = (typeof FEEDBACK_TOPICS)[number]["id"] | (typeof PRAISE_TOPICS)[number]["id"];
 type FeedbackTopicItem = { id: FeedbackTopic; label: string; helper: string };
+
+export function getFeedbackTopicsForTone(tone: FeedbackTone | null): readonly FeedbackTopicItem[] {
+  return tone === "like" ? PRAISE_TOPICS : FEEDBACK_TOPICS;
+}
 
 function saveFeedback(feedback: StoredFeedback) {
   const key = "cocktail-feedback";
@@ -130,14 +135,22 @@ export function FeedbackEntry({ context, messageId, compact = false }: FeedbackE
     setSubmitted(false);
   }
 
+  function selectPanelTone(nextTone: FeedbackTone) {
+    setTone(nextTone);
+    setTopics([]);
+    setRelationship(null);
+    setSubmitted(false);
+  }
+
   function toggleTopic(topic: FeedbackTopic) {
     setTopics((current) => current.includes(topic) ? current.filter((item) => item !== topic) : [...current, topic]);
   }
 
   const isDislike = tone === "dislike";
   const isPraise = tone === "like";
-  const visibleTopics: readonly FeedbackTopicItem[] = isPraise ? PRAISE_TOPICS : FEEDBACK_TOPICS;
+  const visibleTopics = getFeedbackTopicsForTone(tone);
   const title = context === "global" ? "问题反馈" : "这次推荐有帮到你吗？";
+  const panelTitle = isPraise ? "哪里值得继续保留？" : isDislike ? "这条推荐哪里翻车了？" : title;
   const subtitle = isPraise
     ? "收到夸夸也很有用，告诉我哪里值得保留。"
     : isDislike
@@ -178,40 +191,38 @@ export function FeedbackEntry({ context, messageId, compact = false }: FeedbackE
           <div className="feedback-panel-head">
             <div>
               <span>FEEDBACK</span>
-              <strong>{isDislike ? "这条推荐哪里翻车了？" : title}</strong>
+              <strong>{panelTitle}</strong>
             </div>
             <button type="button" aria-label="关闭反馈" onClick={() => setOpen(false)}>×</button>
           </div>
           <p className="feedback-subtitle">{subtitle}</p>
 
+          <div className="feedback-tone-tabs" aria-label="反馈语气">
+            <button className={tone === "general" ? "selected" : ""} type="button" onClick={() => selectPanelTone("general")}>
+              提问题
+            </button>
+            <button className={tone === "like" ? "selected" : ""} type="button" onClick={() => selectPanelTone("like")}>
+              想夸一下
+            </button>
+            <button className={tone === "dislike" ? "selected" : ""} type="button" onClick={() => selectPanelTone("dislike")}>
+              想吐槽
+            </button>
+          </div>
+
           {isDislike && (
             <div className="feedback-probe">
-              <p>你认不认识我？认识的话别客气，狠狠反馈，我扛得住。</p>
+              <p>{FRIEND_PRESSURE_PROMPT}</p>
               <div className="feedback-choice-row">
                 <button className={relationship === "knows_me" ? "selected" : ""} type="button" onClick={() => setRelationship("knows_me")}>
-                  认识，狠狠说
+                  认识 641，狠狠说
                 </button>
                 <button className={relationship === "not_yet" ? "selected" : ""} type="button" onClick={() => setRelationship("not_yet")}>
-                  不认识，但能说
+                  不认识，也能说
                 </button>
                 <button className={relationship === "prefer_not" ? "selected" : ""} type="button" onClick={() => setRelationship("prefer_not")}>
                   先不说
                 </button>
               </div>
-            </div>
-          )}
-
-          {tone === "general" && (
-            <div className="feedback-choice-row">
-              <button className={tone === "general" ? "selected" : ""} type="button">通用反馈</button>
-              <button type="button" onClick={() => {
-                setTone("like");
-                setTopics([]);
-              }}>想夸一下</button>
-              <button type="button" onClick={() => {
-                setTone("dislike");
-                setTopics([]);
-              }}>想吐槽</button>
             </div>
           )}
 

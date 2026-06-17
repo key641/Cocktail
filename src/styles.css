@@ -2612,6 +2612,8 @@ input[type="range"] {
 .feedback-panel {
   display: grid;
   gap: 11px;
+  max-height: min(680px, calc(100vh - 104px));
+  overflow-y: auto;
   border: 1px solid rgba(126, 129, 111, 0.24);
   border-radius: 20px;
   padding: 14px;
@@ -2621,6 +2623,15 @@ input[type="range"] {
   box-shadow: 0 20px 52px rgba(69, 65, 52, 0.18);
   backdrop-filter: blur(14px);
   pointer-events: auto;
+}
+
+.feedback-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.feedback-panel::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(126, 129, 111, 0.24);
 }
 
 .feedback-entry.compact .feedback-panel {
@@ -2695,6 +2706,39 @@ input[type="range"] {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
+}
+
+.feedback-tone-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  border: 1px solid rgba(233, 227, 217, 0.86);
+  border-radius: 999px;
+  padding: 4px;
+  background: rgba(247, 246, 242, 0.72);
+}
+
+.feedback-tone-tabs button {
+  min-height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #777267;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  transition: transform 160ms ease, background 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+.feedback-tone-tabs button:hover {
+  color: #3b3932;
+  transform: translateY(-1px);
+}
+
+.feedback-tone-tabs button.selected {
+  background: #fffefa;
+  color: #343b2c;
+  box-shadow: 0 6px 14px rgba(69, 65, 52, 0.08);
 }
 
 .feedback-choice-row button {

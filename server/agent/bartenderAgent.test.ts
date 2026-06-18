@@ -70,6 +70,21 @@ describe("runBartenderAgent", () => {
     expect(result.primaryRecommendation?.cocktail.id).toBe(result.recommendation?.primary.id);
   });
 
+  it("answers capability smalltalk without forcing a drink recommendation", async () => {
+    const result = await runBartenderAgent({
+      text: "你好，你能做什么？你的能力范围是什么？",
+      client: undefined
+    });
+
+    expect(result.status).toBe("ok");
+    expect(result.intent).toBe("smalltalk");
+    expect(result.message).toContain("我能做");
+    expect(result.message).toContain("我的边界");
+    expect(result.recommendation).toBeUndefined();
+    expect(result.primaryRecommendation).toBeUndefined();
+    expect(result.agentTrace?.some((entry) => entry.step === "能力说明")).toBe(true);
+  });
+
   it("attaches LLM narrative copy when the client can generate text", async () => {
     const result = await runBartenderAgent({
       text: "I want something refreshing and easy",

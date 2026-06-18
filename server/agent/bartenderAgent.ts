@@ -70,7 +70,8 @@ export async function runBartenderAgent({ text, client, session, onTrace }: RunB
     classic_twist: "经典改编",
     external_inspiration: "外部灵感搜索",
     share_caption: "生成分享卡片",
-    safe_mocktail: "安全无酒精"
+    safe_mocktail: "安全无酒精",
+    smalltalk: "闲聊与能力说明"
   };
   pushTrace({
     step: "意图识别",
@@ -97,6 +98,37 @@ export async function runBartenderAgent({ text, client, session, onTrace }: RunB
       alternatives: [],
       agentTrace: trace,
       followUpActions: ["safe_mocktail"],
+      sessionPatch: mergedSession,
+      toolResults: {
+        parseSource: parsed.source,
+        fallbackReason: parsed.debug?.fallbackReason,
+        preference: parsed.preference,
+        safety: parsed.safety,
+        ownedIngredients: parsed.preference.availableIngredients
+      }
+    };
+  }
+
+  if (intent === "smalltalk") {
+    const message = buildCapabilityMessage();
+    pushTrace({
+      step: "能力说明",
+      detail: "用户在问候、闲聊或询问能力范围；不触发酒款推荐，只说明可做与不可做的事。",
+      data: { intent }
+    });
+
+    return {
+      status: "ok",
+      agentMode: parsed.source === "ai" ? "openai_responses_tools" : "local_tools",
+      intent,
+      message,
+      bartenderJudgement: message,
+      understanding,
+      trustSignals: [],
+      citations: [],
+      alternatives: [],
+      agentTrace: trace,
+      followUpActions: ["open_ingredients", "try_another"],
       sessionPatch: mergedSession,
       toolResults: {
         parseSource: parsed.source,
@@ -362,4 +394,12 @@ export async function runBartenderAgent({ text, client, session, onTrace }: RunB
       ownedIngredients: matched.ownedIngredients
     }
   };
+}
+
+function buildCapabilityMessage() {
+  return [
+    "我是一位偏实用的 AI 调酒师，可以陪你闲聊，但我的主业是帮你把“今晚喝什么”变清楚。",
+    "我能做：按口味/场景推荐鸡尾酒；根据你手边材料匹配能做的酒；解释酒感、强度和缺少材料；给经典酒做轻改编；查询或核对官方/可信配方；生成跟调步骤和分享文案。",
+    "我的边界：我不是医疗或法律顾问，不会鼓励酒驾、服药饮酒或未成年人饮酒；不确定的外部配方会标注来源和置信度；如果你只想聊天，我也会尽量聊，但会优先围绕鸡尾酒、酒单和口味帮你。"
+  ].join("\n\n");
 }

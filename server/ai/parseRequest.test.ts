@@ -68,4 +68,13 @@ describe("parseRequestForAgent", () => {
     expect(result.source).toBe("local");
     expect(result.preference.availableIngredients).toEqual(expect.arrayContaining(["gin", "lemon-juice"]));
   });
+
+  it("recognizes capability questions as smalltalk locally", async () => {
+    const result = await parseRequestForAgent({
+      text: "你好，你能做什么？你的能力范围是什么？"
+    });
+
+    expect(result.source).toBe("local");
+    expect(result.preference.requestType).toBe("smalltalk");
+  });
 });

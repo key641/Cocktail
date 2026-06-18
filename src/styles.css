@@ -2710,7 +2710,7 @@ input[type="range"] {
 
 .feedback-tone-tabs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 4px;
   border: 1px solid rgba(233, 227, 217, 0.86);
   border-radius: 999px;
@@ -2797,16 +2797,19 @@ input[type="range"] {
 
 .feedback-panel textarea {
   width: 100%;
-  min-height: 92px;
-  resize: vertical;
+  height: 104px;
+  min-height: 104px;
+  max-height: 104px;
+  resize: none;
+  overflow-y: auto;
   border: 1px solid var(--hairline);
   border-radius: 14px;
   padding: 10px 11px;
   background: #fffdfa;
   color: #302f29;
   font: inherit;
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 16px;
+  line-height: 1.45;
   outline: none;
   transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
 }

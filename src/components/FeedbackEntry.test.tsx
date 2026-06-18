@@ -27,13 +27,12 @@ describe("FeedbackEntry", () => {
     expect(labels).not.toContain("视觉别扭");
   });
 
-  it("keeps issue topics for general and dislike feedback", () => {
+  it("keeps issue topics for problem feedback", () => {
     const generalLabels = getFeedbackTopicsForTone("general").map((topic) => topic.label);
-    const dislikeLabels = getFeedbackTopicsForTone("dislike").map((topic) => topic.label);
 
     expect(generalLabels).toContain("推荐不准");
-    expect(dislikeLabels).toContain("酒单有误");
-    expect(dislikeLabels).not.toContain("推荐很准");
+    expect(generalLabels).toContain("酒单有误");
+    expect(generalLabels).not.toContain("推荐很准");
   });
 
   it("keeps the friend-pressure prompt explicit", () => {

@@ -6,7 +6,7 @@ export const parseRequestSchema = {
   properties: {
     requestType: {
       type: "string",
-      enum: ["classic_recommendation", "classic_twist", "ingredient_matching", "substitution", "menu_share"]
+      enum: ["classic_recommendation", "classic_twist", "ingredient_matching", "substitution", "menu_share", "smalltalk"]
     },
     availableIngredients: {
       type: "array",

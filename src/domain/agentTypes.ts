@@ -8,7 +8,8 @@ export type AgentIntent =
   | "classic_twist"
   | "external_inspiration"
   | "share_caption"
-  | "safe_mocktail";
+  | "safe_mocktail"
+  | "smalltalk";
 
 export type TrustSignal = {
   type: "local_classic" | "iba_source" | "external_source" | "classic_twist" | "not_official" | "uncertain";

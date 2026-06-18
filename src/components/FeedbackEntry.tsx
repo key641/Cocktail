@@ -198,14 +198,11 @@ export function FeedbackEntry({ context, messageId, compact = false }: FeedbackE
           <p className="feedback-subtitle">{subtitle}</p>
 
           <div className="feedback-tone-tabs" aria-label="反馈语气">
-            <button className={tone === "general" ? "selected" : ""} type="button" onClick={() => selectPanelTone("general")}>
+            <button className={!isPraise ? "selected" : ""} type="button" onClick={() => selectPanelTone("general")}>
               提问题
             </button>
             <button className={tone === "like" ? "selected" : ""} type="button" onClick={() => selectPanelTone("like")}>
               想夸一下
-            </button>
-            <button className={tone === "dislike" ? "selected" : ""} type="button" onClick={() => selectPanelTone("dislike")}>
-              想吐槽
             </button>
           </div>
 

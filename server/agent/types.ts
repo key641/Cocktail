@@ -15,7 +15,8 @@ export type AgentIntent =
   | "classic_twist"
   | "external_inspiration"
   | "share_caption"
-  | "safe_mocktail";
+  | "safe_mocktail"
+  | "smalltalk";
 
 export type AgentFollowUpAction =
   | "view_recipe"

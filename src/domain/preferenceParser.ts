@@ -6,7 +6,8 @@ export type ParsedRequestType =
   | "classic_twist"
   | "ingredient_matching"
   | "substitution"
-  | "menu_share";
+  | "menu_share"
+  | "smalltalk";
 
 export type ParsedFlavor = "refreshing" | "sour" | "sweet" | "bitter" | "fruity" | "herbal" | "creamy" | "bubbly";
 
@@ -80,6 +81,7 @@ function findReferenceCocktail(input: string) {
 }
 
 function parseRequestType(input: string, availableIngredients: string[], referenceCocktail?: string): ParsedRequestType {
+  if (/你是谁|你能做什么|能干什么|有什么能力|能力范围|怎么用|使用说明|帮助|\bhelp\b|\bhello\b|\bhi\b|你好|闲聊|聊天/i.test(input)) return "smalltalk";
   if (/分享|文案|发朋友圈|小红书|卡片/.test(input)) return "menu_share";
   if (/替代|没有.*怎么办|能不能换/.test(input)) return "substitution";
   if (/像|类似|但|改|没那么|twist/i.test(input) && referenceCocktail) return "classic_twist";

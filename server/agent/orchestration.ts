@@ -15,6 +15,7 @@ import type {
 
 const officialRecipePattern = /official|standard|authentic|iba|正宗|官方|标准|標準/i;
 const weakCoveragePattern = /smoky|smoke|salty|salted|tea|hot drink|mocktail|non[- ]?alcohol|烟熏|煙燻|咸|鹹|茶|热饮|熱飲|无酒精|無酒精/i;
+const smalltalkPattern = /你是谁|你能做什么|能干什么|有什么能力|能力范围|怎么用|使用说明|帮助|\bhelp\b|\bhello\b|\bhi\b|你好|闲聊|聊天/i;
 
 export type RecommendationConfidence = {
   score: number;
@@ -83,6 +84,7 @@ export function routeAgentIntent({
   safetyBlocked: boolean;
 }): AgentIntent {
   if (safetyBlocked) return "safe_mocktail";
+  if (preference.requestType === "smalltalk" || smalltalkPattern.test(text)) return "smalltalk";
   if (preference.requestType === "menu_share") return "share_caption";
   if (officialRecipePattern.test(text)) return "official_recipe_check";
   if (preference.requestType === "classic_twist") return "classic_twist";

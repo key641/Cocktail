@@ -78,11 +78,36 @@ describe("runBartenderAgent", () => {
 
     expect(result.status).toBe("ok");
     expect(result.intent).toBe("smalltalk");
-    expect(result.message).toContain("我能做");
-    expect(result.message).toContain("我的边界");
+    expect(result.message).toContain("随身小酒保");
+    expect(result.message).toContain("边界");
     expect(result.recommendation).toBeUndefined();
     expect(result.primaryRecommendation).toBeUndefined();
     expect(result.agentTrace?.some((entry) => entry.step === "能力说明")).toBe(true);
+  });
+
+  it("answers greeting smalltalk in a warmer bartender voice", async () => {
+    const result = await runBartenderAgent({
+      text: "你好",
+      client: undefined
+    });
+
+    expect(result.intent).toBe("smalltalk");
+    expect(result.message).toContain("小酒保");
+    expect(result.message).toContain("模糊的口味");
+    expect(result.recommendation).toBeUndefined();
+  });
+
+  it("answers usage help with copyable examples", async () => {
+    const result = await runBartenderAgent({
+      text: "这个怎么用？",
+      client: undefined
+    });
+
+    expect(result.intent).toBe("smalltalk");
+    expect(result.message).toContain("可以这样问我");
+    expect(result.message).toContain("家里有金酒");
+    expect(result.message).toContain("像 Margarita");
+    expect(result.recommendation).toBeUndefined();
   });
 
   it("attaches LLM narrative copy when the client can generate text", async () => {

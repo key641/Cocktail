@@ -5,7 +5,7 @@ import type { BubbleLevel, CocktailVisualSpec, FoamLevel, GarnishType } from "..
 type CocktailVisualProps = {
   spec: CocktailVisualSpec;
   title: string;
-  motion?: "prepare" | "add" | "stir" | "finish";
+  motion?: "prepare" | "add" | "stir" | "shake" | "strain" | "garnish" | "finish";
   buildProgress?: number;
 };
 

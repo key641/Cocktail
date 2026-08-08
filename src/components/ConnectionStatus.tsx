@@ -1,5 +1,8 @@
 ﻿import { useState } from "react";
 
+import { useEffect } from "react";
+import { API_BASE } from "../config/api";
+
 type CheckItem = {
   label: string;
   status: "pending" | "checking" | "ok" | "fail";
@@ -95,18 +98,10 @@ async function runConnectionCheck(apiBase: string): Promise<ConnectionReport> {
 
 function statusIcon(status: CheckItem["status"]) {
   switch (status) {
-    case "ok": return "\u2705";
-    case "fail": return "\u274C";
-    case "checking": return "\u23F3";
-    default: return "\u26AA";
-  }
-}
-
-function overallEmoji(overall: ConnectionReport["overall"]) {
-  switch (overall) {
-    case "ok": return "\u2705";
-    case "degraded": return "\u26A0\uFE0F";
-    case "fail": return "\u274C";
+    case "ok": return "正常";
+    case "fail": return "失败";
+    case "checking": return "检测中";
+    default: return "等待";
   }
 }
 
@@ -114,8 +109,22 @@ export default function ConnectionStatus() {
   const [open, setOpen] = useState(false);
   const [report, setReport] = useState<ConnectionReport | null>(null);
   const [loading, setLoading] = useState(false);
+  const [quickStatus, setQuickStatus] = useState<"checking" | "ok" | "fail">("checking");
 
-  const apiBase = (import.meta as any).env?.VITE_API_BASE_URL ?? "";
+  const apiBase = API_BASE;
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    fetch(`${apiBase}/api/agent/status`, { signal: controller.signal })
+      .then((response) => setQuickStatus(response.ok ? "ok" : "fail"))
+      .catch((error) => {
+        if (error instanceof Error && error.name === "AbortError") return;
+        setQuickStatus("fail");
+      });
+
+    return () => controller.abort();
+  }, [apiBase]);
 
   async function handleCheck() {
     setLoading(true);
@@ -130,15 +139,16 @@ export default function ConnectionStatus() {
     <>
       {/* Trigger icon */}
       <button
-        className="connection-status-trigger"
+        className={`connection-status-trigger ${loading ? "checking" : quickStatus}`}
         onClick={handleCheck}
         aria-label="测试连接"
         title="测试后端和 LLM 连接"
       >
-        {"\u{1F50C}"}
-        {report && (
-          <span className={`connection-dot ${report.overall}`} />
-        )}
+        <svg className="connection-trigger-icon" viewBox="0 0 20 20" aria-hidden="true">
+          <path d="M7.2 6.1V3.7M12.8 6.1V3.7M5.7 6.1h8.6v2.2a4.3 4.3 0 0 1-4.3 4.3 4.3 4.3 0 0 1-4.3-4.3V6.1Z" />
+          <path d="M10 12.6v3.7" />
+        </svg>
+        <span className={`connection-dot ${report?.overall ?? quickStatus}`} />
       </button>
 
       {/* Modal panel */}
@@ -146,16 +156,18 @@ export default function ConnectionStatus() {
         <div className="connection-modal-overlay" onClick={() => setOpen(false)}>
           <div className="connection-modal" onClick={(e) => e.stopPropagation()}>
             <div className="connection-modal-header">
-              <h3>{"\u{1F50C} 连接诊断"}</h3>
-              <div style={{ display: "flex", gap: 8 }}>
+              <h3>连接诊断</h3>
+              <div className="connection-modal-actions">
                 <button
                   onClick={handleCheck}
                   disabled={loading}
-                  style={{ fontSize: 14, color: "#b8b0a0" }}
+                  aria-label="重新检测"
                 >
-                  {"\u{1F504}"}
+                  <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M15.2 7.2A5.8 5.8 0 1 0 15 13M15.2 7.2V3.8M15.2 7.2h-3.4" /></svg>
                 </button>
-                <button onClick={() => setOpen(false)}>{"\u2715"}</button>
+                <button onClick={() => setOpen(false)} aria-label="关闭">
+                  <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 6 8 8M14 6l-8 8" /></svg>
+                </button>
               </div>
             </div>
 
@@ -177,7 +189,6 @@ export default function ConnectionStatus() {
               {report && (
                 <>
                   <div className={`connection-overall ${report.overall}`}>
-                    {overallEmoji(report.overall)}{" "}
                     {report.overall === "ok" ? "一切正常" : report.overall === "degraded" ? "部分可用" : "连接失败"}
                   </div>
 
@@ -196,19 +207,19 @@ export default function ConnectionStatus() {
                   {/* LLM conversation display */}
                   {report.llmRequest && (
                     <div className="llm-chat-bubble user-bubble">
-                      <div className="llm-chat-label">{"\u{1F464} 发送"}</div>
+                      <div className="llm-chat-label">发送内容</div>
                       <p>{report.llmRequest}</p>
                     </div>
                   )}
                   {report.llmReply && (
                     <div className="llm-chat-bubble ai-bubble">
-                      <div className="llm-chat-label">{"\u{1F916} LLM 回复"}</div>
+                      <div className="llm-chat-label">模型回复</div>
                       <p>{report.llmReply}</p>
                     </div>
                   )}
                   {report.llmError && (
                     <div className="llm-chat-bubble error-bubble">
-                      <div className="llm-chat-label">{"\u26A0\uFE0F"} 错误</div>
+                      <div className="llm-chat-label">错误详情</div>
                       <p>{report.llmError}</p>
                     </div>
                   )}

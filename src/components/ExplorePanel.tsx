@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Strength, TasteProfile } from "../domain/types";
+import { SecondaryHeader } from "./SecondaryHeader";
 
 export type ExploreChoices = {
   mood: "bright" | "quiet" | "bold";
@@ -30,20 +31,29 @@ export function ExplorePanel({ onBack, onComplete }: ExplorePanelProps) {
   const [mood, setMood] = useState<ExploreChoices["mood"]>("quiet");
   const [taste, setTaste] = useState<(typeof tasteOptions)[number]>(tasteOptions[0]);
   const [strength, setStrength] = useState<Strength>("light");
+  const activeMood = moodOptions.find((option) => option.id === mood) ?? moodOptions[0];
+  const strengthLabel = strength === "light" ? "轻盈" : strength === "medium" ? "适中" : "偏烈";
 
   return (
-    <section className="screen preference-screen">
-      <button className="ghost-button icon-back" onClick={onBack}>←</button>
-      <div className="section-heading centered">
-        <h2>今晚想调什么？</h2>
-        <p>告诉我们你的偏好，为你推荐合适的酒款</p>
+    <section className="screen preference-screen explore-screen">
+      <SecondaryHeader
+        title="今晚想调什么？"
+        description="三个选择，帮酒保快速理解你"
+        progress="3 项偏好"
+        backLabel="返回首页"
+        onBack={onBack}
+      />
+
+      <div className="preference-summary" aria-live="polite">
+        <span>当前选择</span>
+        <strong>{taste.label} · {activeMood.label} · {strengthLabel}</strong>
       </div>
 
       <div className="option-group">
-        <span className="group-label">口味偏好</span>
-        <div className="choice-grid">
+        <div className="option-group-head"><strong>口味偏好</strong><span>先定下主调</span></div>
+        <div className="choice-grid taste-choice-grid">
           {tasteOptions.map((option) => (
-            <button key={option.id} className={taste.id === option.id ? "choice selected" : "choice"} onClick={() => setTaste(option)}>
+            <button key={option.id} className={taste.id === option.id ? "choice selected" : "choice"} aria-pressed={taste.id === option.id} onClick={() => setTaste(option)}>
               {option.label}
             </button>
           ))}
@@ -51,12 +61,13 @@ export function ExplorePanel({ onBack, onComplete }: ExplorePanelProps) {
       </div>
 
       <div className="option-group">
-        <span className="group-label">场景 / 心情</span>
-        <div className="choice-grid">
+        <div className="option-group-head"><strong>场景 / 心情</strong><span>酒会跟着氛围变化</span></div>
+        <div className="choice-grid mood-choice-grid">
           {moodOptions.map((option) => (
             <button
               key={option.id}
               className={mood === option.id ? "choice selected" : "choice"}
+              aria-pressed={mood === option.id}
               onClick={() => setMood(option.id)}
             >
               <strong>{option.label}</strong>
@@ -67,22 +78,24 @@ export function ExplorePanel({ onBack, onComplete }: ExplorePanelProps) {
       </div>
 
       <div className="option-group">
-        <span className="group-label">酒精强度</span>
+        <div className="option-group-head"><strong>酒精强度</strong><span>控制今晚的节奏</span></div>
         <div className="segmented">
           {(["light", "medium", "strong"] as Strength[]).map((item) => (
-            <button key={item} className={strength === item ? "selected" : ""} onClick={() => setStrength(item)}>
-              {item === "light" ? "不太甜" : item === "medium" ? "刚刚好" : "浓郁"}
+            <button key={item} className={strength === item ? "selected" : ""} aria-pressed={strength === item} onClick={() => setStrength(item)}>
+              {item === "light" ? "轻盈" : item === "medium" ? "适中" : "偏烈"}
             </button>
           ))}
         </div>
       </div>
 
-      <button
-        className="primary-action bottom-action"
-        onClick={() => onComplete({ mood, strength, tasteProfile: taste.profile, seed: Math.floor(Math.random() * 9999) })}
-      >
-        为我推荐
-      </button>
+      <div className="secondary-action-dock">
+        <button
+          className="primary-action"
+          onClick={() => onComplete({ mood, strength, tasteProfile: taste.profile, seed: Math.floor(Math.random() * 9999) })}
+        >
+          看看酒保选的这一杯
+        </button>
+      </div>
     </section>
   );
 }

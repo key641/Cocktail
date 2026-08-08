@@ -5,6 +5,7 @@ import { ListeningGlass } from "./ListeningGlass";
 import { useTypewriter } from "../hooks/useTypewriter";
 import { getCocktailVisualSpec } from "../data/cocktailVisuals";
 import type { AgentDrinkCandidate, AgentRecommendationBundle } from "../domain/agentTypes";
+import { SecondaryHeader } from "./SecondaryHeader";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -306,13 +307,13 @@ export function ChatPanel({
 
   return (
     <section className="screen chat-screen">
-      <div className="chat-top-bar">
-        <button className="ghost-button icon-back" onClick={onBack}>
-          ←
-        </button>
-        <span className="chat-title">AI 调酒师</span>
-        <span className="chat-title-spacer" />
-      </div>
+      <SecondaryHeader
+        compact
+        title="AI 调酒师"
+        description="说说口味、心情或手边材料"
+        backLabel="返回首页"
+        onBack={onBack}
+      />
 
       <div className="chat-messages-area">
         {!hasMessages && !isThinking && (
@@ -353,11 +354,12 @@ export function ChatPanel({
 
       <div className="chat-input-card">
         <textarea
+          aria-label="告诉酒保你想喝什么"
           value={text}
           onChange={(event) => setText(event.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="例如：我想喝清爽、酸一点、带气泡感，适合夏天"
-          rows={3}
+          rows={1}
         />
         <button
           className="primary-action"

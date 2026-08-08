@@ -3,6 +3,8 @@ import { getCocktailVisualSpec } from "../data/cocktailVisuals";
 import { getIngredientName } from "../data/ingredients";
 import type { Cocktail } from "../domain/types";
 import type { CSSProperties, ChangeEvent } from "react";
+import { SecondaryHeader } from "./SecondaryHeader";
+import { BartendingProcessVisual, type BartendingMotion } from "./BartendingProcessVisual";
 
 type FollowAlongViewProps = {
   cocktail: Cocktail;
@@ -13,16 +15,24 @@ type FollowAlongViewProps = {
 };
 
 function shortStepLabel(step: string, index: number, stepCount: number) {
-  if (index === 0) {
-    return "准备材料";
+  if (index === stepCount - 1 && /装饰|完成/.test(step)) {
+    return "完成装饰";
   }
 
-  if (index === stepCount - 1 && /搅拌|轻轻|补|装饰|滤入/.test(step)) {
-    return /搅拌|轻轻/.test(step) ? "轻轻搅拌" : "完成装饰";
+  if (/轻压|压出|捣压/.test(step)) {
+    return "轻压出香";
   }
 
   if (/摇|摇匀/.test(step)) {
     return "摇匀";
+  }
+
+  if (/滤入|过滤|双重过滤|滤/.test(step)) {
+    return "滤入杯中";
+  }
+
+  if (/搅拌|轻轻/.test(step)) {
+    return "轻轻搅拌";
   }
 
   if (/加入|倒入|加冰|补/.test(step)) {
@@ -32,21 +42,40 @@ function shortStepLabel(step: string, index: number, stepCount: number) {
   return `第 ${index + 1} 步`;
 }
 
-function motionForStep(step: string, index: number, stepCount: number): "prepare" | "add" | "stir" | "finish" {
+type StepMotion = BartendingMotion | "garnish";
+
+function motionForStep(step: string, index: number, stepCount: number): StepMotion {
   if (index === 0) {
-    return "prepare";
+    if (/摇|摇匀/.test(step)) return "shake";
   }
 
-  if (index === stepCount - 1 && /装饰|完成|滤入/.test(step)) {
-    return "finish";
+  if (index === stepCount - 1 && /装饰|完成/.test(step)) {
+    return "garnish";
   }
 
-  if (/搅拌|轻轻|摇|摇匀|压/.test(step)) {
+  if (/摇|摇匀/.test(step)) {
+    return "shake";
+  }
+
+  if (/滤入|过滤|双重过滤|滤/.test(step)) {
+    return "strain";
+  }
+
+  if (/搅拌|轻轻|压/.test(step)) {
     return "stir";
   }
 
   return "add";
 }
+
+const motionLabels: Record<StepMotion, string> = {
+  prepare: "器具就位",
+  add: "倒入酒液",
+  stir: "轻轻搅拌",
+  shake: "充分摇匀",
+  strain: "缓缓滤入",
+  garnish: "装饰落位"
+};
 
 function progressForStep(index: number, stepCount: number) {
   if (stepCount <= 1) {
@@ -63,11 +92,22 @@ export function FollowAlongView({
   onStepChange,
   onPhotoSelected
 }: FollowAlongViewProps) {
-  const stepCount = cocktail.steps.length;
-  const currentStep = Math.min(Math.max(activeStep, 0), stepCount - 1);
-  const timelineStyle = { "--step-count": stepCount } as CSSProperties;
-  const motion = motionForStep(cocktail.steps[currentStep], currentStep, stepCount);
-  const buildProgress = progressForStep(currentStep, stepCount);
+  const recipeStepCount = cocktail.steps.length;
+  const stageCount = recipeStepCount + 1;
+  const isComplete = activeStep >= stageCount;
+  const currentStage = isComplete ? stageCount - 1 : Math.min(Math.max(activeStep, 0), stageCount - 1);
+  const isPreparation = currentStage === 0;
+  const recipeStepIndex = Math.max(0, currentStage - 1);
+  const currentRecipeStep = cocktail.steps[recipeStepIndex];
+  const currentTitle = isPreparation ? "准备材料" : shortStepLabel(currentRecipeStep, recipeStepIndex, recipeStepCount);
+  const timelineStyle = { "--step-count": stageCount } as CSSProperties;
+  const motion = isPreparation ? "prepare" : motionForStep(currentRecipeStep, recipeStepIndex, recipeStepCount);
+  const buildProgress = isComplete ? 1 : isPreparation ? 0.12 : progressForStep(recipeStepIndex, recipeStepCount);
+  const visualSpec = getCocktailVisualSpec(cocktail.id);
+  const stages = [
+    { label: "准备材料", detail: "先确认材料和用量，准备好冰块与工具。" },
+    ...cocktail.steps.map((step, index) => ({ label: shortStepLabel(step, index, recipeStepCount), detail: step }))
+  ];
 
   function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -78,67 +118,105 @@ export function FollowAlongView({
 
   return (
     <section className="screen follow-screen">
-      <button className="ghost-button icon-back" onClick={onBack}>←</button>
+      <SecondaryHeader
+        title={`跟着做 ${cocktail.englishName}`}
+        description={isComplete ? "这杯已经完成，留下你的作品" : "只看眼前这一步，完成后再继续"}
+        progress={isComplete ? "已完成" : `${currentStage + 1} / ${stageCount}`}
+        backLabel="返回酒款详情"
+        onBack={onBack}
+      />
 
-      <div className="section-heading centered">
-        <h2>跟着做，记录你的作品</h2>
-        <p>一步步来，享受调酒的乐趣</p>
-      </div>
-
-      <article className="follow-reference-card">
-        <CocktailVisual
-          spec={getCocktailVisualSpec(cocktail.id)}
-          title={cocktail.englishName}
-          motion={motion}
-          buildProgress={buildProgress}
-        />
-        <div>
-          <span className="eyebrow">参考酒图</span>
-          <h3>{cocktail.englishName}</h3>
-          <p>{cocktail.garnish}</p>
-        </div>
-      </article>
-
-      <div className="recipe-block compact-recipe">
-        <span className="group-label">准备材料</span>
-        {cocktail.ingredients.map((ingredient) => (
-          <div className="recipe-line" key={ingredient.ingredientId}>
-            <span>{getIngredientName(ingredient.ingredientId)}</span>
-            <span>{ingredient.amount}{ingredient.optional ? " · 可选" : ""}</span>
-          </div>
-        ))}
-      </div>
-
-      <article className="follow-step-card">
+      <article className="follow-step-card follow-workspace">
         <div className="follow-step-timeline" style={timelineStyle}>
-          {cocktail.steps.map((step, index) => (
+          {stages.map((stage, index) => (
             <button
-              key={step}
-              className={index === currentStep ? "active" : ""}
-              aria-label={`第 ${index + 1} 步：${shortStepLabel(step, index, stepCount)}`}
+              key={`${index}-${stage.label}`}
+              className={`${index === currentStage && !isComplete ? "active" : ""} ${isComplete || index < currentStage ? "done" : ""}`.trim()}
+              aria-current={index === currentStage && !isComplete ? "step" : undefined}
+              aria-label={`第 ${index + 1} 步：${stage.label}`}
               onClick={() => onStepChange(index)}
             >
               <span>{index + 1}</span>
-              <em>{shortStepLabel(step, index, stepCount)}</em>
+              <em>{stage.label}</em>
             </button>
           ))}
         </div>
-        <p className="current-step-copy">{cocktail.steps[currentStep]}</p>
-        <div className="step-actions">
-          <button className="secondary-action" disabled={currentStep === 0} onClick={() => onStepChange(currentStep - 1)}>
-            上一步
-          </button>
-          <button className="secondary-action" disabled={currentStep === stepCount - 1} onClick={() => onStepChange(currentStep + 1)}>
-            下一步
-          </button>
-        </div>
+
+        {isComplete ? (
+          <div className="follow-complete-panel">
+            <CocktailVisual
+              spec={visualSpec}
+              title={cocktail.englishName}
+              motion="finish"
+              buildProgress={1}
+            />
+            <div>
+              <span>调制完成</span>
+              <h3>{cocktail.englishName}</h3>
+              <p>最后用{cocktail.garnish}完成装饰，就可以享用了。</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="follow-step-main">
+              <div className="follow-step-visual" data-motion={motion}>
+                {motion === "garnish" ? (
+                  <CocktailVisual
+                    key={currentStage}
+                    spec={visualSpec}
+                    title={cocktail.englishName}
+                    motion="garnish"
+                    buildProgress={buildProgress}
+                  />
+                ) : (
+                  <BartendingProcessVisual key={currentStage} motion={motion} glassType={visualSpec.glassType} title={cocktail.englishName} />
+                )}
+                <span className="motion-status" aria-hidden="true">{motionLabels[motion]}</span>
+              </div>
+              <div className="follow-step-copy">
+                <span>第 {currentStage + 1} 步</span>
+                <h3>{currentTitle}</h3>
+                <p className="current-step-copy">{stages[currentStage].detail}</p>
+
+                {isPreparation && (
+                  <div className="step-material-list">
+                    {cocktail.ingredients.map((ingredient) => (
+                      <div key={ingredient.ingredientId}>
+                        <span>{getIngredientName(ingredient.ingredientId)}</span>
+                        <strong>{ingredient.amount}{ingredient.optional ? " · 可选" : ""}</strong>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {currentStage === stageCount - 1 && (
+                  <div className="step-garnish">
+                    <span>最后装饰</span>
+                    <strong>{cocktail.garnish}</strong>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="step-actions">
+              <button className="secondary-action" disabled={currentStage === 0} onClick={() => onStepChange(currentStage - 1)}>
+                上一步
+              </button>
+              <button className="primary-action" onClick={() => onStepChange(currentStage === stageCount - 1 ? stageCount : currentStage + 1)}>
+                {currentStage === stageCount - 1 ? "完成调制" : "完成这一步"}
+              </button>
+            </div>
+          </>
+        )}
       </article>
 
-      <label className="photo-upload-card">
-        <span>拍摄我的成品</span>
-        <strong>上传照片</strong>
-        <input type="file" accept="image/*" onChange={handlePhotoChange} />
-      </label>
+      {isComplete && (
+        <label className="photo-upload-card ready">
+          <span>拍摄我的成品</span>
+          <strong>上传照片，生成分享卡</strong>
+          <input aria-label="上传调酒成品照片" type="file" accept="image/*" onChange={handlePhotoChange} />
+        </label>
+      )}
 
       <div className="insight-panel bartender-tip">
         <strong>小贴士</strong>

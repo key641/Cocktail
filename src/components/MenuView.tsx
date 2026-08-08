@@ -28,7 +28,7 @@ function recommendationFor(cocktail: Cocktail): CocktailRecommendation {
 export function MenuView({ cocktails, onBack, onSelect }: MenuViewProps) {
   return (
     <section className="screen menu-screen">
-      <button className="ghost-button icon-back" onClick={onBack}>←</button>
+      <button className="ghost-button icon-back" onClick={onBack} aria-label="返回首页">←</button>
 
       <div className="section-heading centered">
         <h2>当前酒单</h2>

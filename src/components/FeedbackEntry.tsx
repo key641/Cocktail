@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { API_BASE } from "../config/api";
 
 type FeedbackTone = "like" | "dislike" | "general";
 type Relationship = "knows_me" | "not_yet" | "prefer_not";
@@ -20,7 +21,6 @@ type StoredFeedback = {
   createdAt: string;
 };
 
-const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL ?? "";
 const FEEDBACK_TOPICS = [
   { id: "wrong_recommendation", label: "推荐不准", helper: "口味、场景或强度没对上" },
   { id: "recipe_issue", label: "酒单有误", helper: "配方、材料、步骤或官方口径" },
@@ -190,7 +190,6 @@ export function FeedbackEntry({ context, messageId, compact = false }: FeedbackE
         <div className="feedback-panel">
           <div className="feedback-panel-head">
             <div>
-              <span>FEEDBACK</span>
               <strong>{panelTitle}</strong>
             </div>
             <button type="button" aria-label="关闭反馈" onClick={() => setOpen(false)}>×</button>
@@ -198,10 +197,10 @@ export function FeedbackEntry({ context, messageId, compact = false }: FeedbackE
           <p className="feedback-subtitle">{subtitle}</p>
 
           <div className="feedback-tone-tabs" aria-label="反馈语气">
-            <button className={!isPraise ? "selected" : ""} type="button" onClick={() => selectPanelTone("general")}>
+            <button className={!isPraise ? "selected" : ""} type="button" aria-pressed={!isPraise} onClick={() => selectPanelTone("general")}>
               提问题
             </button>
-            <button className={tone === "like" ? "selected" : ""} type="button" onClick={() => selectPanelTone("like")}>
+            <button className={tone === "like" ? "selected" : ""} type="button" aria-pressed={tone === "like"} onClick={() => selectPanelTone("like")}>
               想夸一下
             </button>
           </div>
@@ -210,13 +209,13 @@ export function FeedbackEntry({ context, messageId, compact = false }: FeedbackE
             <div className="feedback-probe">
               <p>{FRIEND_PRESSURE_PROMPT}</p>
               <div className="feedback-choice-row">
-                <button className={relationship === "knows_me" ? "selected" : ""} type="button" onClick={() => setRelationship("knows_me")}>
+                <button className={relationship === "knows_me" ? "selected" : ""} type="button" aria-pressed={relationship === "knows_me"} onClick={() => setRelationship("knows_me")}>
                   认识 641，狠狠说
                 </button>
-                <button className={relationship === "not_yet" ? "selected" : ""} type="button" onClick={() => setRelationship("not_yet")}>
+                <button className={relationship === "not_yet" ? "selected" : ""} type="button" aria-pressed={relationship === "not_yet"} onClick={() => setRelationship("not_yet")}>
                   不认识，也能说
                 </button>
-                <button className={relationship === "prefer_not" ? "selected" : ""} type="button" onClick={() => setRelationship("prefer_not")}>
+                <button className={relationship === "prefer_not" ? "selected" : ""} type="button" aria-pressed={relationship === "prefer_not"} onClick={() => setRelationship("prefer_not")}>
                   先不说
                 </button>
               </div>
@@ -227,6 +226,7 @@ export function FeedbackEntry({ context, messageId, compact = false }: FeedbackE
             {visibleTopics.map((topic) => (
               <button
                 className={topics.includes(topic.id) ? "selected" : ""}
+                aria-pressed={topics.includes(topic.id)}
                 key={topic.id}
                 type="button"
                 onClick={() => toggleTopic(topic.id)}
@@ -238,6 +238,7 @@ export function FeedbackEntry({ context, messageId, compact = false }: FeedbackE
           </div>
 
           <textarea
+            aria-label="具体反馈"
             value={text}
             onChange={(event) => setText(event.target.value)}
             placeholder={placeholder}

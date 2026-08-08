@@ -3,6 +3,7 @@ import { getIngredientName } from "../data/ingredients";
 import { getCocktailVisualSpec } from "../data/cocktailVisuals";
 import type { AgentRecommendationBundle, Citation, TrustSignal } from "../domain/agentTypes";
 import type { CocktailRecommendation } from "../domain/types";
+import { SecondaryHeader } from "./SecondaryHeader";
 
 type ResultViewProps = {
   recommendation: CocktailRecommendation;
@@ -50,7 +51,12 @@ export function ResultView({
 
   return (
     <section className="screen result-screen">
-      <button className="ghost-button icon-back" onClick={onBack}>←</button>
+      <SecondaryHeader
+        title="酒保为你选了这一杯"
+        description="先看风味，再决定要不要动手"
+        backLabel="返回上一页"
+        onBack={onBack}
+      />
 
       <article className="hero-recommendation-card">
         {isExternalRecommendation ? (
@@ -69,7 +75,7 @@ export function ResultView({
           </div>
           {recommendationReason && (
             <div className="hero-reason">
-              <strong>推荐理由</strong>
+              <strong>为什么是它</strong>
               <p>{recommendationReason}</p>
             </div>
           )}
@@ -95,8 +101,8 @@ export function ResultView({
         </div>
       )}
 
-      <div className="recipe-block">
-        <span className="group-label">所需材料</span>
+      <div className="recipe-block result-recipe">
+        <div className="content-section-head"><strong>所需材料</strong><span>{recipeIngredients.length} 项</span></div>
         {recipeIngredients.map((ingredient) => (
           <div className="recipe-line" key={`${ingredient.name}-${ingredient.amount}`}>
             <span>{ingredient.name}</span>
@@ -122,8 +128,8 @@ export function ResultView({
         <div className="soft-warning">暂未识别：{unknownIngredients.join("、")}。可以先按点选材料继续。</div>
       )}
 
-      <div className="steps-block">
-        <span className="group-label">制作步骤</span>
+      <div className="steps-block result-steps">
+        <div className="content-section-head"><strong>制作步骤</strong><span>{recipeSteps.length} 步</span></div>
         {recipeSteps.map((step, index) => (
           <div className="step-line" key={step}>
             <span>{index + 1}</span>
@@ -137,14 +143,12 @@ export function ResultView({
         <p>{bartenderTip}</p>
       </div>
 
-      {!isExternalRecommendation && (
-        <button className="primary-action bottom-action" onClick={onTryAnother}>
-          我来试试
-        </button>
-      )}
-      <button className="secondary-action compact-action" onClick={onBack}>
-        再换一杯
-      </button>
+      <div className="secondary-action-dock split-actions">
+        <button className="secondary-action" onClick={onBack}>换一杯</button>
+        {!isExternalRecommendation && (
+          <button className="primary-action" onClick={onTryAnother}>开始调制</button>
+        )}
+      </div>
     </section>
   );
 }

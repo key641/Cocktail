@@ -156,7 +156,7 @@ const atomSections = [
 export function SvgAtomGallery({ onBack }: SvgAtomGalleryProps) {
   return (
     <section className="screen atom-screen">
-      <button className="ghost-button icon-back" onClick={onBack}>←</button>
+      <button className="ghost-button icon-back" onClick={onBack} aria-label="返回首页">←</button>
 
       <div className="section-heading centered">
         <h2>SVG 原子层</h2>

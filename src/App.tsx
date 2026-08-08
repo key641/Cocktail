@@ -24,6 +24,7 @@ import type { CaptionStyle } from "./domain/captionGenerator";
 import type { AgentRecommendationBundle, AgentSessionState, Citation, TrustSignal } from "./domain/agentTypes";
 import type { CocktailRecommendation, TasteProfile } from "./domain/types";
 import { rankForExploration } from "./domain/recommendation";
+import { API_BASE } from "./config/api";
 
 type Screen = "home" | "chat" | "explore" | "ingredients" | "menu" | "atoms" | "result" | "follow" | "share";
 
@@ -39,8 +40,6 @@ let messageIdCounter = 0;
 function nextMessageId() {
   return `msg-${++messageIdCounter}`;
 }
-
-const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL ?? "";
 
 /* ------------------------------------------------------------------ */
 /*  Network helpers                                                    */
@@ -539,8 +538,16 @@ function buildLocalFallbackBundle(
 
   return (
     <main className="app-shell">
+      {/*
+        THESIS: 一张会回应用户的私人酒保工作台，拒绝手机样机与同构卡片堆叠。
+        OWN-WORLD: 雾白工作台、墨绿服务托盘、酒液绿点色、细线酒谱与大幅留白。
+        STORY: 用户先被酒保接住，再从对话、探索或材料自然进入一杯可执行的酒。
+        FIRST VIEWPORT: 左侧文字与入口形成服务邀请，酒保杯作为中央偏右的活体主角，主行动紧邻杯子。
+        FORM: 工作台与酒谱目录的混合结构，方向种子 e9d6962b。
+        FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+      */}
       <div className="phone-frame">
-        <div className="top-tool-cluster">
+        <div className={`top-tool-cluster ${screen === "home" ? "home-tools" : "context-tools"}`}>
           <FeedbackEntry context="global" />
           <ConnectionStatus />
         </div>

@@ -75,6 +75,17 @@ button {
   min-height: 0;
   overflow-y: auto;
   padding: 18px 22px 24px;
+  scrollbar-color: rgba(126, 129, 111, 0.24) transparent;
+  scrollbar-width: thin;
+}
+
+.screen::-webkit-scrollbar {
+  width: 6px;
+}
+
+.screen::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(126, 129, 111, 0.2);
 }
 
 .topline,
@@ -210,9 +221,11 @@ button {
 .bowl,
 .stem,
 .base {
-  fill: rgba(255, 255, 255, 0.1);
+  fill: rgba(255, 255, 255, 0.04);
   stroke: url("#glassStroke");
-  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
 }
 
 .rim-back {
@@ -221,13 +234,16 @@ button {
 
 .liquid-fill {
   fill: url("#liquidGradient");
-  opacity: 0.64;
-  transform-origin: 120px 165px;
+  opacity: 0.58;
+  transform-origin: 120px 118px;
   animation: liquidBreathe 6s ease-in-out infinite;
 }
 
 .liquid-surface {
-  fill: rgba(255, 255, 255, 0.4);
+  fill: none;
+  stroke: rgba(244, 247, 224, 0.7);
+  stroke-linecap: round;
+  stroke-width: 1.5;
 }
 
 .citrus .liquid-stop-one,
@@ -249,7 +265,6 @@ button {
 }
 
 .liquid-shine,
-.spirit-thread,
 .thinking-swirl,
 .rim-light,
 .reveal-arc {
@@ -258,21 +273,15 @@ button {
 }
 
 .liquid-shine {
-  stroke: rgba(255, 255, 255, 0.72);
-  stroke-width: 2;
-}
-
-.spirit-thread {
-  stroke: rgba(137, 150, 103, 0.56);
-  stroke-width: 2;
-  stroke-dasharray: 150;
-  animation: spiritListen 4.8s ease-in-out infinite;
+  opacity: 0.7;
+  stroke: rgba(255, 255, 255, 0.78);
+  stroke-width: 1.6;
 }
 
 .thinking-swirl {
   opacity: 0;
-  stroke: rgba(137, 150, 103, 0.32);
-  stroke-width: 1.8;
+  stroke: rgba(137, 150, 103, 0.24);
+  stroke-width: 1.45;
   stroke-dasharray: 120;
 }
 
@@ -281,14 +290,16 @@ button {
   animation: swirlThink 4s ease-in-out infinite;
 }
 
-.ice rect {
-  fill: rgba(255, 255, 255, 0.48);
-  stroke: rgba(127, 127, 115, 0.22);
+.ice-cubes path {
+  fill: rgba(255, 255, 255, 0.38);
+  stroke: rgba(127, 127, 115, 0.18);
+  stroke-linejoin: round;
   stroke-width: 1;
+  animation: iceSettle 4.6s ease-in-out infinite;
 }
 
 .bubbles circle {
-  fill: rgba(255, 255, 255, 0.85);
+  fill: rgba(255, 255, 255, 0.58);
   animation: bubbleRise 4s ease-in-out infinite;
 }
 
@@ -308,6 +319,61 @@ button {
 .revealing .reveal-arc {
   opacity: 1;
   animation: revealSweep 2.2s ease-in-out infinite;
+}
+
+.bartender-glass .face-lines {
+  fill: none;
+  stroke: rgba(87, 82, 70, 0.66);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.smile-eye {
+  opacity: 0.72;
+  transform-origin: 120px 120px;
+}
+
+.listening .smile-eye,
+.thinking .smile-eye,
+.revealing .smile-eye {
+  opacity: 0.78;
+}
+
+.thinking .smile-eye.left {
+  animation: smileEyeLeft 3.2s ease-in-out infinite;
+}
+
+.thinking .smile-eye.right {
+  animation: smileEyeRight 3.2s ease-in-out infinite;
+}
+
+.glass-mouth {
+  transition: d 180ms ease;
+}
+
+.revealing .glass-mouth {
+  stroke-width: 2.3;
+}
+
+.leaf-garnish {
+  transform-origin: 150px 50px;
+  animation: leafBreathe 4.8s ease-in-out infinite;
+}
+
+.leaf {
+  fill: rgba(191, 210, 155, 0.72);
+  stroke: rgba(103, 116, 86, 0.62);
+  stroke-linejoin: round;
+  stroke-width: 1.4;
+}
+
+.leaf-stem,
+.leaf-vein {
+  fill: none;
+  stroke: rgba(103, 116, 86, 0.58);
+  stroke-linecap: round;
+  stroke-width: 1.2;
 }
 
 .bartender-note {
@@ -346,6 +412,21 @@ button {
   background: var(--paper);
   text-align: left;
   box-shadow: var(--shadow-soft);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.home-action-card:hover {
+  border-color: rgba(115, 115, 99, 0.34);
+  background: #fffefb;
+  box-shadow: 0 16px 34px rgba(48, 45, 38, 0.065);
+  transform: translateY(-2px);
+}
+
+.home-action-card:focus-visible,
+.home-bottom-nav button:focus-visible,
+.glass-entry:focus-visible {
+  outline: 3px solid rgba(157, 167, 127, 0.22);
+  outline-offset: 3px;
 }
 
 .home-action-icon {
@@ -357,6 +438,16 @@ button {
   border-radius: 999px;
   color: #696c58;
   font-size: 22px;
+}
+
+.home-action-svg {
+  width: 25px;
+  height: 25px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.45;
 }
 
 .home-action-card strong {
@@ -375,32 +466,47 @@ button {
 .home-bottom-nav {
   flex-shrink: 0;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
   border-top: 1px solid var(--soft-line);
-  padding: 11px 0 8px;
+  padding: 8px 10px 9px;
   color: #858177;
   font-size: 12px;
   text-align: center;
 }
 
 .home-bottom-nav button {
+  display: grid;
+  gap: 3px;
+  min-height: 46px;
+  place-items: center;
   border: 0;
+  border-radius: 14px;
   color: inherit;
   background: transparent;
   font: inherit;
+  transition: background 160ms ease, color 160ms ease, transform 160ms ease;
 }
 
-.home-bottom-nav button::before {
-  display: block;
-  margin-bottom: 4px;
-  color: currentColor;
-  content: "◇";
-  font-size: 14px;
+.home-bottom-nav button:hover {
+  background: rgba(239, 238, 230, 0.62);
+  color: #4f4c45;
 }
 
 .home-bottom-nav .active {
   color: #292821;
   font-weight: 600;
+  background: rgba(239, 238, 230, 0.88);
+}
+
+.bottom-nav-icon {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.55;
 }
 
 .primary-action,
@@ -773,6 +879,12 @@ input[type="range"] {
 .chat-recommendation-card:hover {
   border-color: rgba(126, 137, 96, 0.42);
   box-shadow: 0 14px 28px rgba(54, 48, 34, 0.09);
+  transform: translateY(-1px);
+}
+
+.chat-recommendation-card:focus-visible {
+  outline: 3px solid rgba(157, 167, 127, 0.2);
+  outline-offset: 3px;
 }
 
 .chat-rec-visual {
@@ -1609,6 +1721,19 @@ input[type="range"] {
   padding: 12px 10px;
   color: #292821;
   text-align: center;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.menu-card:hover {
+  border-color: rgba(115, 115, 99, 0.3);
+  background: #fffefb;
+  box-shadow: 0 14px 30px rgba(48, 45, 38, 0.06);
+  transform: translateY(-2px);
+}
+
+.menu-card:focus-visible {
+  outline: 3px solid rgba(157, 167, 127, 0.2);
+  outline-offset: 3px;
 }
 
 .menu-card .cocktail-visual {
@@ -2043,6 +2168,36 @@ input[type="range"] {
   }
 }
 
+@keyframes leafBreathe {
+  0%,
+  100% {
+    transform: rotate(0deg) translateY(0);
+  }
+  50% {
+    transform: rotate(-4deg) translateY(-1px);
+  }
+}
+
+@keyframes smileEyeLeft {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-2px) rotate(-2deg);
+  }
+}
+
+@keyframes smileEyeRight {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-1px) rotate(2deg);
+  }
+}
+
 @keyframes glassReady {
   0%,
   100% {
@@ -2242,8 +2397,9 @@ input[type="range"] {
 }
 
 .chat-avatar .listening-glass {
-  width: 32px;
-  height: 32px;
+  width: 38px;
+  height: 38px;
+  margin: -3px 0 0 -3px;
 }
 
 /* --- bubble content wrapper (for AI side with thinking + recommendations) --- */
@@ -2572,7 +2728,7 @@ input[type="range"] {
   position: absolute;
   top: 44px;
   right: 0;
-  width: min(326px, calc(100vw - 44px));
+  width: min(334px, calc(100vw - 44px));
   pointer-events: auto;
 }
 
@@ -2623,6 +2779,8 @@ input[type="range"] {
   box-shadow: 0 20px 52px rgba(69, 65, 52, 0.18);
   backdrop-filter: blur(14px);
   pointer-events: auto;
+  transform-origin: top right;
+  animation: feedbackPanelIn 180ms ease-out;
 }
 
 .feedback-panel::-webkit-scrollbar {
@@ -2636,6 +2794,7 @@ input[type="range"] {
 
 .feedback-entry.compact .feedback-panel {
   max-width: 310px;
+  transform-origin: top left;
 }
 
 .feedback-panel-head {
@@ -2783,6 +2942,16 @@ input[type="range"] {
   transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
 }
 
+.feedback-topic-grid button:focus-visible,
+.feedback-tone-tabs button:focus-visible,
+.feedback-choice-row button:focus-visible,
+.feedback-panel-head button:focus-visible,
+.feedback-floating-button:focus-visible,
+.feedback-inline button:focus-visible {
+  outline: 3px solid rgba(157, 167, 127, 0.18);
+  outline-offset: 2px;
+}
+
 .feedback-topic-grid strong {
   color: #34322c;
   font-size: 12px;
@@ -2837,6 +3006,17 @@ input[type="range"] {
 .feedback-actions .primary-action {
   min-height: 42px;
   padding: 10px 14px;
+}
+
+@keyframes feedbackPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* --- live thinking dot animation --- */
@@ -3005,10 +3185,10 @@ input[type="range"] {
   margin-bottom: 6px;
   background: rgba(255,255,255,0.03);
 }
-.connection-check.ok { border-left: 3px solid #6abf69; }
-.connection-check.fail { border-left: 3px solid #e05555; }
-.connection-check.pending { border-left: 3px solid #555; }
-.connection-check.checking { border-left: 3px solid #f0a040; }
+.connection-check.ok { box-shadow: inset 0 0 0 1px rgba(106, 191, 105, 0.18); }
+.connection-check.fail { box-shadow: inset 0 0 0 1px rgba(224, 85, 85, 0.2); }
+.connection-check.pending { box-shadow: inset 0 0 0 1px rgba(150, 145, 136, 0.14); }
+.connection-check.checking { box-shadow: inset 0 0 0 1px rgba(240, 160, 64, 0.2); }
 .check-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
 .connection-check div { flex: 1; min-width: 0; }
 .connection-check strong {
@@ -3072,11 +3252,11 @@ input[type="range"] {
 
 
 .thinking-step.fallback {
-  border-left: 3px solid #f0a040;
   padding-left: 8px;
   margin-left: -4px;
   background: rgba(240, 160, 64, 0.06);
-  border-radius: 0 8px 8px 0;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px rgba(240, 160, 64, 0.14);
 }
 .thinking-step.fallback .thinking-step-num {
   background: #f0a04026;

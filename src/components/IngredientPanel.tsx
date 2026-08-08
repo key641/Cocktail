@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ingredients } from "../data/ingredients";
 import type { IngredientCategory, TasteProfile } from "../domain/types";
+import { SecondaryHeader } from "./SecondaryHeader";
 
 type IngredientPanelProps = {
   isParsing: boolean;
@@ -27,11 +28,13 @@ const tasteLabels: Array<[keyof TasteProfile, string]> = [
 ];
 
 const defaultTaste: TasteProfile = { sweet: 2, sour: 3, bitter: 1, fresh: 4, strong: 2, fruity: 2, herbal: 1, bubbly: 0 };
+const categoryOrder: IngredientCategory[] = ["spirit", "liqueur", "citrus", "juice", "mixer", "sweetener", "bitter", "herb", "garnish"];
 
 export function IngredientPanel({ isParsing, onBack, onComplete }: IngredientPanelProps) {
   const [selected, setSelected] = useState<string[]>(["gin", "lemon-juice", "simple-syrup"]);
   const [freeText, setFreeText] = useState("");
   const [taste, setTaste] = useState<TasteProfile>(defaultTaste);
+  const [activeCategory, setActiveCategory] = useState<IngredientCategory>("spirit");
 
   const grouped = useMemo(() => {
     return ingredients.reduce<Record<string, typeof ingredients>>((groups, ingredient) => {
@@ -40,6 +43,8 @@ export function IngredientPanel({ isParsing, onBack, onComplete }: IngredientPan
       return groups;
     }, {});
   }, []);
+  const selectedIngredients = ingredients.filter((ingredient) => selected.includes(ingredient.id));
+  const activeIngredients = grouped[activeCategory] ?? [];
 
   function toggleIngredient(id: string) {
     setSelected((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
@@ -50,51 +55,78 @@ export function IngredientPanel({ isParsing, onBack, onComplete }: IngredientPan
   }
 
   return (
-    <section className="screen preference-screen">
-      <button className="ghost-button icon-back" onClick={onBack}>←</button>
-      <div className="section-heading centered">
-        <h2>用手边材料调酒</h2>
-        <p>点选已有材料，或者直接写一句话</p>
+    <section className="screen preference-screen ingredient-screen">
+      <SecondaryHeader
+        title="看看手边能调什么"
+        description="写一句话，或按类别补充材料"
+        progress={`已选 ${selected.length} 种`}
+        backLabel="返回首页"
+        onBack={onBack}
+      />
+
+      <div className="ingredient-composer">
+        <label htmlFor="ingredient-description">直接告诉酒保</label>
+        <textarea
+          id="ingredient-description"
+          aria-label="描述你现有的材料"
+          className="ingredient-textarea"
+          value={freeText}
+          onChange={(event) => setFreeText(event.target.value)}
+          placeholder="例如：我有龙舌兰、青柠、汤力水，还有一点薄荷"
+        />
       </div>
 
-      <textarea
-        className="ingredient-textarea"
-        value={freeText}
-        onChange={(event) => setFreeText(event.target.value)}
-        placeholder="例如：我有龙舌兰、青柠、汤力水，还有一点薄荷"
-      />
+      <div className="selected-ingredient-strip" aria-live="polite">
+        <div><strong>已放上吧台</strong><span>{selected.length ? "点一下可移除" : "还没有选择材料"}</span></div>
+        <div className="chip-row wrap">
+          {selectedIngredients.map((ingredient) => (
+            <button key={ingredient.id} className="chip selected removable" onClick={() => toggleIngredient(ingredient.id)} aria-label={`移除${ingredient.name}`}>
+              {ingredient.name}<span aria-hidden="true">×</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div className="taste-sliders">
         {tasteLabels.map(([key, label]) => (
           <label key={key}>
             <span>{label}</span>
-            <input type="range" min="0" max="5" value={taste[key]} onChange={(event) => updateTaste(key, Number(event.target.value))} />
+            <input aria-label={`${label}偏好`} type="range" min="0" max="5" value={taste[key]} onChange={(event) => updateTaste(key, Number(event.target.value))} />
           </label>
         ))}
       </div>
 
-      <div className="ingredient-groups">
-        {Object.entries(grouped).map(([category, group]) => (
-          <div key={category} className="ingredient-group">
-            <span className="group-label">{categoryLabels[category as IngredientCategory]}</span>
-            <div className="chip-row wrap">
-              {group.map((ingredient) => (
-                <button
-                  key={ingredient.id}
-                  className={selected.includes(ingredient.id) ? "chip selected" : "chip"}
-                  onClick={() => toggleIngredient(ingredient.id)}
-                >
-                  {ingredient.name}
-                </button>
-              ))}
-            </div>
+      <div className="ingredient-picker">
+        <div className="option-group-head"><strong>按类别补充</strong><span>一次只看一组，更容易找</span></div>
+        <div className="ingredient-category-tabs" role="tablist" aria-label="材料类别">
+          {categoryOrder.map((category) => (
+            <button key={category} role="tab" aria-selected={activeCategory === category} className={activeCategory === category ? "selected" : ""} onClick={() => setActiveCategory(category)}>
+              {categoryLabels[category]}
+            </button>
+          ))}
+        </div>
+        <div className="ingredient-group" role="tabpanel">
+          <div className="chip-row wrap">
+            {activeIngredients.map((ingredient) => (
+              <button
+                key={ingredient.id}
+                className={selected.includes(ingredient.id) ? "chip selected" : "chip"}
+                aria-pressed={selected.includes(ingredient.id)}
+                onClick={() => toggleIngredient(ingredient.id)}
+              >
+                {ingredient.name}
+              </button>
+            ))}
           </div>
-        ))}
+        </div>
       </div>
 
-      <button className="primary-action bottom-action" onClick={() => onComplete(selected, freeText, taste)} disabled={isParsing}>
-        {isParsing ? "正在识别材料" : "为我推荐"}
-      </button>
+      <div className="secondary-action-dock">
+        <span>{freeText.trim() ? "会一起理解你写下的材料" : `根据 ${selected.length} 种材料匹配`}</span>
+        <button className="primary-action" onClick={() => onComplete(selected, freeText, taste)} disabled={isParsing || (!selected.length && !freeText.trim())}>
+          {isParsing ? "正在识别材料" : "看看能调什么"}
+        </button>
+      </div>
     </section>
   );
 }

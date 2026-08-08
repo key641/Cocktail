@@ -2,6 +2,8 @@ import { CocktailVisual } from "./CocktailVisual";
 import { getCocktailVisualSpec } from "../data/cocktailVisuals";
 import { generateShareCaption, type CaptionStyle } from "../domain/captionGenerator";
 import type { Cocktail } from "../domain/types";
+import { useState } from "react";
+import { SecondaryHeader } from "./SecondaryHeader";
 
 type ShareCardViewProps = {
   cocktail: Cocktail;
@@ -27,6 +29,7 @@ export function ShareCardView({
   onCaptionStyleChange,
   onRetake
 }: ShareCardViewProps) {
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
   const caption = generateShareCaption({
     cocktail,
     style: captionStyle,
@@ -34,14 +37,24 @@ export function ShareCardView({
     userLevel: "这次尝试"
   });
 
+  async function copyCaption() {
+    try {
+      await navigator.clipboard.writeText(`${caption.captionFull}\n\n${caption.shareTags.join(" ")}`);
+      setCopyState("copied");
+    } catch {
+      setCopyState("error");
+    }
+    window.setTimeout(() => setCopyState("idle"), 1800);
+  }
+
   return (
     <section className="screen share-screen">
-      <button className="ghost-button icon-back" onClick={onBack}>←</button>
-
-      <div className="section-heading centered">
-        <h2>生成分享卡</h2>
-        <p>选择喜欢的风格，分享你的调酒时刻</p>
-      </div>
+      <SecondaryHeader
+        title="生成分享卡"
+        description="选一种语气，再复制成品文案"
+        backLabel="返回跟做步骤"
+        onBack={onBack}
+      />
 
       <article className="share-card-preview">
         <span className="eyebrow">今晚我完成了</span>
@@ -61,24 +74,32 @@ export function ShareCardView({
         <blockquote>{caption.captionFull}</blockquote>
       </article>
 
-      <div className="caption-style-row">
-        {(Object.keys(captionStyleLabels) as CaptionStyle[]).map((style) => (
-          <button
-            key={style}
-            className={style === captionStyle ? "selected" : ""}
-            onClick={() => onCaptionStyleChange(style)}
-          >
-            {captionStyleLabels[style]}
-          </button>
-        ))}
+      <div className="caption-style-control">
+        <div className="content-section-head"><strong>文案语气</strong><span>立即预览</span></div>
+        <div className="caption-style-row">
+          {(Object.keys(captionStyleLabels) as CaptionStyle[]).map((style) => (
+            <button
+              key={style}
+              className={style === captionStyle ? "selected" : ""}
+              aria-pressed={style === captionStyle}
+              onClick={() => onCaptionStyleChange(style)}
+            >
+              {captionStyleLabels[style]}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <button className="primary-action bottom-action" type="button">
-        保存分享图
-      </button>
-      <button className="secondary-action compact-action" type="button" onClick={onRetake}>
-        重新上传照片
-      </button>
+      <div className="share-secondary-actions">
+        <button className="secondary-action compact-action" type="button" disabled aria-describedby="share-save-note">保存分享图</button>
+        <button className="secondary-action compact-action" type="button" onClick={onRetake}>重新上传照片</button>
+        <small className="share-save-note" id="share-save-note">图片保存还在完善，当前可先复制文案。</small>
+      </div>
+      <div className="secondary-action-dock">
+        <button className="primary-action" type="button" onClick={() => void copyCaption()}>
+          {copyState === "copied" ? "文案已复制" : copyState === "error" ? "复制失败，请重试" : "复制分享文案"}
+        </button>
+      </div>
     </section>
   );
 }

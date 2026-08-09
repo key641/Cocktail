@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Strength, TasteProfile } from "../domain/types";
 import { SecondaryHeader } from "./SecondaryHeader";
+import { triggerHaptic } from "../utils/haptics";
 
 export type ExploreChoices = {
   mood: "bright" | "quiet" | "bold";
@@ -34,6 +35,11 @@ export function ExplorePanel({ onBack, onComplete }: ExplorePanelProps) {
   const activeMood = moodOptions.find((option) => option.id === mood) ?? moodOptions[0];
   const strengthLabel = strength === "light" ? "轻盈" : strength === "medium" ? "适中" : "偏烈";
 
+  function select<T>(setter: (value: T) => void, value: T) {
+    triggerHaptic("selection");
+    setter(value);
+  }
+
   return (
     <section className="screen preference-screen explore-screen">
       <SecondaryHeader
@@ -53,7 +59,7 @@ export function ExplorePanel({ onBack, onComplete }: ExplorePanelProps) {
         <div className="option-group-head"><strong>口味偏好</strong><span>先定下主调</span></div>
         <div className="choice-grid taste-choice-grid">
           {tasteOptions.map((option) => (
-            <button key={option.id} className={taste.id === option.id ? "choice selected" : "choice"} aria-pressed={taste.id === option.id} onClick={() => setTaste(option)}>
+            <button key={option.id} className={taste.id === option.id ? "choice selected" : "choice"} aria-pressed={taste.id === option.id} onClick={() => select(setTaste, option)}>
               {option.label}
             </button>
           ))}
@@ -68,7 +74,7 @@ export function ExplorePanel({ onBack, onComplete }: ExplorePanelProps) {
               key={option.id}
               className={mood === option.id ? "choice selected" : "choice"}
               aria-pressed={mood === option.id}
-              onClick={() => setMood(option.id)}
+              onClick={() => select(setMood, option.id)}
             >
               <strong>{option.label}</strong>
               <span>{option.hint}</span>
@@ -81,7 +87,7 @@ export function ExplorePanel({ onBack, onComplete }: ExplorePanelProps) {
         <div className="option-group-head"><strong>酒精强度</strong><span>控制今晚的节奏</span></div>
         <div className="segmented">
           {(["light", "medium", "strong"] as Strength[]).map((item) => (
-            <button key={item} className={strength === item ? "selected" : ""} aria-pressed={strength === item} onClick={() => setStrength(item)}>
+            <button key={item} className={strength === item ? "selected" : ""} aria-pressed={strength === item} onClick={() => select(setStrength, item)}>
               {item === "light" ? "轻盈" : item === "medium" ? "适中" : "偏烈"}
             </button>
           ))}
@@ -91,7 +97,10 @@ export function ExplorePanel({ onBack, onComplete }: ExplorePanelProps) {
       <div className="secondary-action-dock">
         <button
           className="primary-action"
-          onClick={() => onComplete({ mood, strength, tasteProfile: taste.profile, seed: Math.floor(Math.random() * 9999) })}
+          onClick={() => {
+            triggerHaptic("action");
+            onComplete({ mood, strength, tasteProfile: taste.profile, seed: Math.floor(Math.random() * 9999) });
+          }}
         >
           看看酒保选的这一杯
         </button>

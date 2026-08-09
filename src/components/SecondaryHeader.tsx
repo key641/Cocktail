@@ -17,7 +17,7 @@ export function SecondaryHeader({
 }: SecondaryHeaderProps) {
   return (
     <header className={compact ? "secondary-header compact" : "secondary-header"}>
-      <button className="secondary-back" type="button" onClick={onBack} aria-label={backLabel}>
+      <button className="secondary-back" type="button" onClick={() => { triggerHaptic("selection"); onBack(); }} aria-label={backLabel}>
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="m14.5 6-6 6 6 6" />
         </svg>
@@ -30,3 +30,4 @@ export function SecondaryHeader({
     </header>
   );
 }
+import { triggerHaptic } from "../utils/haptics";

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ListeningGlass } from "./ListeningGlass";
+import { triggerHaptic } from "../utils/haptics";
 
 type HomeProps = {
   onChat: () => void;
@@ -31,6 +32,11 @@ function HomeActionIcon({ type }: { type: "explore" | "ingredients" }) {
 export function Home({ onChat, onExplore, onIngredients }: HomeProps) {
   const [glassState, setGlassState] = useState<"idle" | "listening">("idle");
 
+  function open(action: () => void) {
+    triggerHaptic("action");
+    action();
+  }
+
   return (
     <section className="screen home-screen">
       <div className="home-hero-copy">
@@ -42,7 +48,7 @@ export function Home({ onChat, onExplore, onIngredients }: HomeProps) {
       <div className="glass-stage">
         <button
           className="glass-entry"
-          onClick={onChat}
+          onClick={() => open(onChat)}
           onMouseEnter={() => setGlassState("listening")}
           onMouseLeave={() => setGlassState("idle")}
           onFocus={() => setGlassState("listening")}
@@ -58,22 +64,22 @@ export function Home({ onChat, onExplore, onIngredients }: HomeProps) {
       </div>
 
       <div className="action-stack home-actions">
-        <button className="home-action-card home-action-primary" onClick={onChat}>
-          <span className="home-action-index">01</span>
+        <button className="home-action-card home-action-primary" onClick={() => open(onChat)}>
+          <span className="home-action-index">AI 酒保</span>
           <span>
             <strong>和酒保聊聊</strong>
             <small>一句话说出你现在想喝的感觉</small>
           </span>
           <span className="home-action-arrow" aria-hidden="true">→</span>
         </button>
-        <button className="home-action-card" onClick={onExplore}>
+        <button className="home-action-card" onClick={() => open(onExplore)}>
           <span className="home-action-icon"><HomeActionIcon type="explore" /></span>
           <span>
             <strong>慢慢探索</strong>
             <small>从口味、心情和场合开始</small>
           </span>
         </button>
-        <button className="home-action-card" onClick={onIngredients}>
+        <button className="home-action-card" onClick={() => open(onIngredients)}>
           <span className="home-action-icon"><HomeActionIcon type="ingredients" /></span>
           <span>
             <strong>看看手边材料</strong>

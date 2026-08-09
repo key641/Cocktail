@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { API_BASE } from "../config/api";
+import { triggerHaptic } from "../utils/haptics";
 
 type FeedbackTone = "like" | "dislike" | "general";
 type Relationship = "knows_me" | "not_yet" | "prefer_not";
@@ -78,6 +79,7 @@ export function FeedbackEntry({ context, messageId, compact = false }: FeedbackE
 
   async function submit(nextTone = tone, nextTopics = topics) {
     if (!nextTone) return;
+    triggerHaptic("action");
 
     const feedback: StoredFeedback = {
       id: createFeedbackId(),
@@ -114,6 +116,7 @@ export function FeedbackEntry({ context, messageId, compact = false }: FeedbackE
   }
 
   function pickTone(nextTone: FeedbackTone) {
+    triggerHaptic("selection");
     setTone(nextTone);
     setSubmitted(false);
 
@@ -128,6 +131,7 @@ export function FeedbackEntry({ context, messageId, compact = false }: FeedbackE
   }
 
   function openGlobalFeedback() {
+    triggerHaptic("selection");
     setTone("general");
     setTopics([]);
     setText("");
@@ -136,6 +140,7 @@ export function FeedbackEntry({ context, messageId, compact = false }: FeedbackE
   }
 
   function selectPanelTone(nextTone: FeedbackTone) {
+    triggerHaptic("selection");
     setTone(nextTone);
     setTopics([]);
     setRelationship(null);
@@ -143,6 +148,7 @@ export function FeedbackEntry({ context, messageId, compact = false }: FeedbackE
   }
 
   function toggleTopic(topic: FeedbackTopic) {
+    triggerHaptic("selection");
     setTopics((current) => current.includes(topic) ? current.filter((item) => item !== topic) : [...current, topic]);
   }
 

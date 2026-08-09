@@ -6,6 +6,7 @@ import { useTypewriter } from "../hooks/useTypewriter";
 import { getCocktailVisualSpec } from "../data/cocktailVisuals";
 import type { AgentDrinkCandidate, AgentRecommendationBundle } from "../domain/agentTypes";
 import { SecondaryHeader } from "./SecondaryHeader";
+import { triggerHaptic } from "../utils/haptics";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -125,7 +126,7 @@ function RecommendationMiniCard({
   return (
     <button
       className={`chat-recommendation-card ${isPrimary ? "primary" : ""}`}
-      onClick={onSelect}
+      onClick={() => { triggerHaptic("selection"); onSelect(); }}
     >
       <div className="chat-rec-visual">
         {visualSpec ? (
@@ -262,7 +263,7 @@ function ExamplesBar({ onPick, disabled }: { onPick: (text: string) => void; dis
       <strong>可以这样说</strong>
       <div className="chat-examples">
         {examples.map((example) => (
-          <button key={example} onClick={() => onPick(example)} disabled={disabled}>
+          <button key={example} onClick={() => { triggerHaptic("selection"); onPick(example); }} disabled={disabled}>
             {example}
           </button>
         ))}
@@ -292,6 +293,7 @@ export function ChatPanel({
   function submit() {
     const value = text.trim();
     if (!value || isThinking) return;
+    triggerHaptic("action");
     setText("");
     onSubmit(value);
   }

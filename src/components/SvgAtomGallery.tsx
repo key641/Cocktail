@@ -153,14 +153,13 @@ const atomSections = [
   }
 ];
 
-export function SvgAtomGallery({ onBack }: SvgAtomGalleryProps) {
+export function SvgAtomGallery({ onBack: _onBack }: SvgAtomGalleryProps) {
   return (
     <section className="screen atom-screen">
-      <button className="ghost-button icon-back" onClick={onBack} aria-label="返回首页">←</button>
-
       <div className="section-heading centered">
+        <span className="eyebrow">VISUAL LIBRARY</span>
         <h2>SVG 原子层</h2>
-        <p>拆开查看当前酒图的杯型、液体、冰、泡沫、气泡、杯口和装饰</p>
+        <p>杯型、酒液、冰块、装饰与表情的视觉基准。</p>
       </div>
 
       <div className="atom-section-list">

@@ -4,6 +4,7 @@ import { generateShareCaption, type CaptionStyle } from "../domain/captionGenera
 import type { Cocktail } from "../domain/types";
 import { useState } from "react";
 import { SecondaryHeader } from "./SecondaryHeader";
+import { triggerHaptic } from "../utils/haptics";
 
 type ShareCardViewProps = {
   cocktail: Cocktail;
@@ -40,6 +41,7 @@ export function ShareCardView({
   async function copyCaption() {
     try {
       await navigator.clipboard.writeText(`${caption.captionFull}\n\n${caption.shareTags.join(" ")}`);
+      triggerHaptic("success");
       setCopyState("copied");
     } catch {
       setCopyState("error");
@@ -82,7 +84,7 @@ export function ShareCardView({
               key={style}
               className={style === captionStyle ? "selected" : ""}
               aria-pressed={style === captionStyle}
-              onClick={() => onCaptionStyleChange(style)}
+              onClick={() => { triggerHaptic("selection"); onCaptionStyleChange(style); }}
             >
               {captionStyleLabels[style]}
             </button>
@@ -92,7 +94,7 @@ export function ShareCardView({
 
       <div className="share-secondary-actions">
         <button className="secondary-action compact-action" type="button" disabled aria-describedby="share-save-note">保存分享图</button>
-        <button className="secondary-action compact-action" type="button" onClick={onRetake}>重新上传照片</button>
+        <button className="secondary-action compact-action" type="button" onClick={() => { triggerHaptic("selection"); onRetake(); }}>重新上传照片</button>
         <small className="share-save-note" id="share-save-note">图片保存还在完善，当前可先复制文案。</small>
       </div>
       <div className="secondary-action-dock">

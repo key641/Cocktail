@@ -47,6 +47,12 @@ function NavIcon({ icon }: { icon: Tab["icon"] }) {
 }
 
 export function BottomNav({ active, onNavigate }: BottomNavProps) {
+  function navigate(screen: BottomNavScreen) {
+    if (screen === active) return;
+    triggerHaptic("selection");
+    onNavigate(screen);
+  }
+
   return (
     <nav className="home-bottom-nav" aria-label="主导航">
       {tabs.map((tab) => (
@@ -54,7 +60,7 @@ export function BottomNav({ active, onNavigate }: BottomNavProps) {
           key={tab.screen}
           className={active === tab.screen ? "active" : ""}
           type="button"
-          onClick={() => onNavigate(tab.screen)}
+          onClick={() => navigate(tab.screen)}
           aria-current={active === tab.screen ? "page" : undefined}
         >
           <NavIcon icon={tab.icon} />
@@ -64,3 +70,4 @@ export function BottomNav({ active, onNavigate }: BottomNavProps) {
     </nav>
   );
 }
+import { triggerHaptic } from "../utils/haptics";

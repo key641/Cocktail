@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ingredients } from "../data/ingredients";
 import type { IngredientCategory, TasteProfile } from "../domain/types";
 import { SecondaryHeader } from "./SecondaryHeader";
+import { triggerHaptic } from "../utils/haptics";
 
 type IngredientPanelProps = {
   isParsing: boolean;
@@ -47,6 +48,7 @@ export function IngredientPanel({ isParsing, onBack, onComplete }: IngredientPan
   const activeIngredients = grouped[activeCategory] ?? [];
 
   function toggleIngredient(id: string) {
+    triggerHaptic("selection");
     setSelected((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
   }
 
@@ -91,7 +93,7 @@ export function IngredientPanel({ isParsing, onBack, onComplete }: IngredientPan
         {tasteLabels.map(([key, label]) => (
           <label key={key}>
             <span>{label}</span>
-            <input aria-label={`${label}偏好`} type="range" min="0" max="5" value={taste[key]} onChange={(event) => updateTaste(key, Number(event.target.value))} />
+            <input aria-label={`${label}偏好`} type="range" min="0" max="5" value={taste[key]} onChange={(event) => updateTaste(key, Number(event.target.value))} onPointerUp={() => triggerHaptic("selection")} />
           </label>
         ))}
       </div>
@@ -100,7 +102,7 @@ export function IngredientPanel({ isParsing, onBack, onComplete }: IngredientPan
         <div className="option-group-head"><strong>按类别补充</strong><span>一次只看一组，更容易找</span></div>
         <div className="ingredient-category-tabs" role="tablist" aria-label="材料类别">
           {categoryOrder.map((category) => (
-            <button key={category} role="tab" aria-selected={activeCategory === category} className={activeCategory === category ? "selected" : ""} onClick={() => setActiveCategory(category)}>
+            <button key={category} role="tab" aria-selected={activeCategory === category} className={activeCategory === category ? "selected" : ""} onClick={() => { triggerHaptic("selection"); setActiveCategory(category); }}>
               {categoryLabels[category]}
             </button>
           ))}
@@ -123,7 +125,7 @@ export function IngredientPanel({ isParsing, onBack, onComplete }: IngredientPan
 
       <div className="secondary-action-dock">
         <span>{freeText.trim() ? "会一起理解你写下的材料" : `根据 ${selected.length} 种材料匹配`}</span>
-        <button className="primary-action" onClick={() => onComplete(selected, freeText, taste)} disabled={isParsing || (!selected.length && !freeText.trim())}>
+        <button className="primary-action" onClick={() => { triggerHaptic("action"); onComplete(selected, freeText, taste); }} disabled={isParsing || (!selected.length && !freeText.trim())}>
           {isParsing ? "正在识别材料" : "看看能调什么"}
         </button>
       </div>

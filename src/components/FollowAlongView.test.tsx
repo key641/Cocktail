@@ -61,4 +61,32 @@ describe("FollowAlongView", () => {
     expect(markup).toContain("data-motion=\"add\"");
     expect(markup).toContain("倒入酒液");
   });
+
+  it("shows photo processing and recoverable error states", () => {
+    const processingMarkup = renderToStaticMarkup(
+      <FollowAlongView
+        cocktail={mojito}
+        activeStep={mojito.steps.length + 1}
+        onBack={() => undefined}
+        onStepChange={() => undefined}
+        onPhotoSelected={() => undefined}
+        isPhotoProcessing
+      />
+    );
+    const errorMarkup = renderToStaticMarkup(
+      <FollowAlongView
+        cocktail={mojito}
+        activeStep={mojito.steps.length + 1}
+        onBack={() => undefined}
+        onStepChange={() => undefined}
+        onPhotoSelected={() => undefined}
+        photoError="照片读取失败"
+      />
+    );
+
+    expect(processingMarkup).toContain("正在准备照片");
+    expect(processingMarkup).toContain("aria-busy=\"true\"");
+    expect(errorMarkup).toContain("role=\"alert\"");
+    expect(errorMarkup).toContain("照片读取失败");
+  });
 });

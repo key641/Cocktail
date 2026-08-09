@@ -5,6 +5,7 @@ import type { Cocktail } from "../domain/types";
 import type { CSSProperties, ChangeEvent } from "react";
 import { SecondaryHeader } from "./SecondaryHeader";
 import { BartendingProcessVisual, type BartendingMotion } from "./BartendingProcessVisual";
+import { triggerHaptic } from "../utils/haptics";
 
 type FollowAlongViewProps = {
   cocktail: Cocktail;
@@ -12,6 +13,8 @@ type FollowAlongViewProps = {
   onBack: () => void;
   onStepChange: (step: number) => void;
   onPhotoSelected: (file: File) => void;
+  isPhotoProcessing?: boolean;
+  photoError?: string;
 };
 
 function shortStepLabel(step: string, index: number, stepCount: number) {
@@ -90,7 +93,9 @@ export function FollowAlongView({
   activeStep,
   onBack,
   onStepChange,
-  onPhotoSelected
+  onPhotoSelected,
+  isPhotoProcessing = false,
+  photoError = ""
 }: FollowAlongViewProps) {
   const recipeStepCount = cocktail.steps.length;
   const stageCount = recipeStepCount + 1;
@@ -114,6 +119,18 @@ export function FollowAlongView({
     if (file) {
       onPhotoSelected(file);
     }
+    event.target.value = "";
+  }
+
+  function selectStep(step: number) {
+    triggerHaptic("selection");
+    onStepChange(step);
+  }
+
+  function completeStep() {
+    const completesDrink = currentStage === stageCount - 1;
+    triggerHaptic(completesDrink ? "success" : "action");
+    onStepChange(completesDrink ? stageCount : currentStage + 1);
   }
 
   return (
@@ -134,7 +151,7 @@ export function FollowAlongView({
               className={`${index === currentStage && !isComplete ? "active" : ""} ${isComplete || index < currentStage ? "done" : ""}`.trim()}
               aria-current={index === currentStage && !isComplete ? "step" : undefined}
               aria-label={`第 ${index + 1} 步：${stage.label}`}
-              onClick={() => onStepChange(index)}
+              onClick={() => selectStep(index)}
             >
               <span>{index + 1}</span>
               <em>{stage.label}</em>
@@ -199,10 +216,10 @@ export function FollowAlongView({
             </div>
 
             <div className="step-actions">
-              <button className="secondary-action" disabled={currentStage === 0} onClick={() => onStepChange(currentStage - 1)}>
+              <button className="secondary-action" disabled={currentStage === 0} onClick={() => selectStep(currentStage - 1)}>
                 上一步
               </button>
-              <button className="primary-action" onClick={() => onStepChange(currentStage === stageCount - 1 ? stageCount : currentStage + 1)}>
+              <button className="primary-action" onClick={completeStep}>
                 {currentStage === stageCount - 1 ? "完成调制" : "完成这一步"}
               </button>
             </div>
@@ -211,11 +228,14 @@ export function FollowAlongView({
       </article>
 
       {isComplete && (
-        <label className="photo-upload-card ready">
-          <span>拍摄我的成品</span>
-          <strong>上传照片，生成分享卡</strong>
-          <input aria-label="上传调酒成品照片" type="file" accept="image/*" onChange={handlePhotoChange} />
-        </label>
+        <>
+          <label className={`photo-upload-card ready ${isPhotoProcessing ? "processing" : ""}`} aria-busy={isPhotoProcessing}>
+            <span>{isPhotoProcessing ? "正在准备照片" : "拍摄我的成品"}</span>
+            <strong>{isPhotoProcessing ? "马上为你生成分享卡" : "上传照片，生成分享卡"}</strong>
+            <input aria-label="上传调酒成品照片" type="file" accept="image/*" onChange={handlePhotoChange} disabled={isPhotoProcessing} />
+          </label>
+          {photoError && <div className="soft-warning photo-upload-error" role="alert">{photoError}</div>}
+        </>
       )}
 
       <div className="insight-panel bartender-tip">

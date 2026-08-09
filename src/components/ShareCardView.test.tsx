@@ -22,6 +22,7 @@ describe("ShareCardView", () => {
     expect(markup).toContain("生成分享卡");
     expect(markup).toContain("Mojito");
     expect(markup).toContain("blob:demo-photo");
+    expect(markup).toContain("<img");
     expect(markup).toContain("轻松分享");
     expect(markup).toContain("保存分享图");
   });

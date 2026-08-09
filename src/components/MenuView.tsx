@@ -1,6 +1,7 @@
 import { CocktailVisual } from "./CocktailVisual";
 import { getCocktailVisualSpec } from "../data/cocktailVisuals";
 import type { Cocktail, CocktailRecommendation } from "../domain/types";
+import { triggerHaptic } from "../utils/haptics";
 
 type MenuViewProps = {
   cocktails: Cocktail[];
@@ -25,19 +26,18 @@ function recommendationFor(cocktail: Cocktail): CocktailRecommendation {
   };
 }
 
-export function MenuView({ cocktails, onBack, onSelect }: MenuViewProps) {
+export function MenuView({ cocktails, onBack: _onBack, onSelect }: MenuViewProps) {
   return (
     <section className="screen menu-screen">
-      <button className="ghost-button icon-back" onClick={onBack} aria-label="返回首页">←</button>
-
       <div className="section-heading centered">
-        <h2>当前酒单</h2>
-        <p>查看每款经典酒的 SVG 参考图</p>
+        <span className="eyebrow">HOUSE SELECTION</span>
+        <h2>酒单</h2>
+        <p>从风味出发，挑一杯今晚想喝的。</p>
       </div>
 
       <div className="menu-grid">
         {cocktails.map((cocktail) => (
-          <button key={cocktail.id} className="menu-card" onClick={() => onSelect(recommendationFor(cocktail))}>
+          <button key={cocktail.id} className="menu-card" onClick={() => { triggerHaptic("selection"); onSelect(recommendationFor(cocktail)); }}>
             <CocktailVisual spec={getCocktailVisualSpec(cocktail.id)} title={cocktail.englishName} />
             <span>{cocktail.englishName}</span>
             <strong>{cocktail.name}</strong>

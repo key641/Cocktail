@@ -4,6 +4,7 @@ import { getCocktailVisualSpec } from "../data/cocktailVisuals";
 import type { AgentRecommendationBundle, Citation, TrustSignal } from "../domain/agentTypes";
 import type { CocktailRecommendation } from "../domain/types";
 import { SecondaryHeader } from "./SecondaryHeader";
+import { triggerHaptic } from "../utils/haptics";
 
 type ResultViewProps = {
   recommendation: CocktailRecommendation;
@@ -144,9 +145,9 @@ export function ResultView({
       </div>
 
       <div className="secondary-action-dock split-actions">
-        <button className="secondary-action" onClick={onBack}>换一杯</button>
+        <button className="secondary-action" onClick={() => { triggerHaptic("selection"); onBack(); }}>换一杯</button>
         {!isExternalRecommendation && (
-          <button className="primary-action" onClick={onTryAnother}>开始调制</button>
+          <button className="primary-action" onClick={() => { triggerHaptic("action"); onTryAnother(); }}>开始调制</button>
         )}
       </div>
     </section>

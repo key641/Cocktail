@@ -41,6 +41,21 @@ function nextMessageId() {
   return `msg-${++messageIdCounter}`;
 }
 
+function readPhotoAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+      } else {
+        reject(new Error("Unsupported photo result"));
+      }
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("Photo read failed"));
+    reader.readAsDataURL(file);
+  });
+}
+
 /* ------------------------------------------------------------------ */
 /*  Network helpers                                                    */
 /* ------------------------------------------------------------------ */
@@ -151,17 +166,17 @@ export default function App() {
   /* --- follow / share --- */
   const [activeStep, setActiveStep] = useState(0);
   const [photoUrl, setPhotoUrl] = useState("");
+  const [isPhotoProcessing, setIsPhotoProcessing] = useState(false);
+  const [photoError, setPhotoError] = useState("");
 
   // Restore scroll position when switching screens
   const prevScreenRef = useRef<Screen>(screen);
   if (prevScreenRef.current !== screen) {
-    const saved = scrollPositions.current[screen];
-    if (saved !== undefined) {
-      requestAnimationFrame(() => {
-        const el = document.querySelector(".screen");
-        if (el) el.scrollTop = saved;
-      });
-    }
+    const saved = scrollPositions.current[screen] ?? 0;
+    requestAnimationFrame(() => {
+      const el = document.querySelector(".screen");
+      if (el) el.scrollTop = saved;
+    });
     prevScreenRef.current = screen;
   }
   const [captionStyle, setCaptionStyle] = useState<CaptionStyle>("casual_share");
@@ -521,15 +536,31 @@ function buildLocalFallbackBundle(
   function startFollowAlong() {
     setActiveStep(0);
     setPhotoUrl("");
+    setPhotoError("");
+    setIsPhotoProcessing(false);
     setCaptionStyle("casual_share");
     navigateTo("follow");
   }
 
-  function handlePhotoSelected(file: File) {
-    if (photoUrl) URL.revokeObjectURL(photoUrl);
-    setPhotoUrl(URL.createObjectURL(file));
-    setCaptionStyle("casual_share");
-    navigateTo("share");
+  async function handlePhotoSelected(file: File) {
+    if (file.type && !file.type.startsWith("image/")) {
+      setPhotoError("这个文件不是图片，请重新选择一张照片。");
+      return;
+    }
+
+    setIsPhotoProcessing(true);
+    setPhotoError("");
+
+    try {
+      const preview = await readPhotoAsDataUrl(file);
+      setPhotoUrl(preview);
+      setCaptionStyle("casual_share");
+      navigateTo("share");
+    } catch {
+      setPhotoError("照片读取失败，请重新选择，或先换一张尺寸较小的照片。");
+    } finally {
+      setIsPhotoProcessing(false);
+    }
   }
 
   /* ------------------------------------------------------------------ */
@@ -604,6 +635,8 @@ function buildLocalFallbackBundle(
             onBack={() => navigateTo("result")}
             onStepChange={setActiveStep}
             onPhotoSelected={handlePhotoSelected}
+            isPhotoProcessing={isPhotoProcessing}
+            photoError={photoError}
           />
         )}
         {screen === "share" && recommendation && (

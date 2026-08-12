@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { cocktails } from "../data/cocktails";
-import { FollowAlongView } from "./FollowAlongView";
+import { FollowAlongView, getStepPresentation } from "./FollowAlongView";
 
 describe("FollowAlongView", () => {
   const mojito = cocktails.find((cocktail) => cocktail.id === "mojito");
@@ -22,8 +22,8 @@ describe("FollowAlongView", () => {
     expect(markup).toContain("Mojito");
     expect(markup).toContain("follow-step-timeline");
     expect(markup).toContain("准备材料");
-    expect(markup).toContain("加入材料");
-    expect(markup).toContain("轻轻搅拌");
+    expect(markup).toContain("杯中加入材料");
+    expect(markup).toContain("杯中轻搅");
     expect(markup).toContain("process-prepare");
     expect(markup).toContain("process-shaker");
     expect(markup).toContain("白朗姆");
@@ -58,8 +58,43 @@ describe("FollowAlongView", () => {
       />
     );
 
-    expect(markup).toContain("data-motion=\"add\"");
-    expect(markup).toContain("倒入酒液");
+    expect(markup).toContain("data-motion=\"build\"");
+    expect(markup).toContain("杯中直调");
+  });
+
+  it("maps representative recipes to the correct bartending technique and vessel", () => {
+    const byId = (id: string) => {
+      const cocktail = cocktails.find((item) => item.id === id);
+      if (!cocktail) throw new Error(`missing ${id}`);
+      return cocktail;
+    };
+
+    const ginSour = byId("gin-sour");
+    const mojito = byId("mojito");
+    const negroni = byId("negroni");
+    const pinaColada = byId("pina-colada");
+    const piscoSour = byId("pisco-sour");
+    const tequilaSunrise = byId("tequila-sunrise");
+    const bloodyMary = byId("bloody-mary");
+
+    expect(getStepPresentation(ginSour, ginSour.steps[0], 0, ginSour.steps.length)).toMatchObject({ motion: "combine", vessel: "shaker" });
+    expect(getStepPresentation(mojito, mojito.steps[0], 0, mojito.steps.length)).toMatchObject({ motion: "muddle" });
+    expect(getStepPresentation(mojito, mojito.steps[2], 2, mojito.steps.length)).toMatchObject({ motion: "stir-in-glass", vessel: "serving-glass" });
+    expect(getStepPresentation(negroni, negroni.steps[1], 1, negroni.steps.length)).toMatchObject({ motion: "stir", vessel: "mixing-glass" });
+    expect(getStepPresentation(pinaColada, pinaColada.steps[0], 0, pinaColada.steps.length)).toMatchObject({ motion: "blend" });
+    expect(getStepPresentation(piscoSour, piscoSour.steps[0], 0, piscoSour.steps.length)).toMatchObject({ motion: "dry-shake" });
+    expect(getStepPresentation(tequilaSunrise, tequilaSunrise.steps[2], 2, tequilaSunrise.steps.length)).toMatchObject({ motion: "layer" });
+    expect(getStepPresentation(bloodyMary, bloodyMary.steps[2], 2, bloodyMary.steps.length)).toMatchObject({ motion: "transfer" });
+  });
+
+  it("maps every menu recipe step to a named technique", () => {
+    const unmapped = cocktails.flatMap((cocktail) =>
+      cocktail.steps
+        .map((step, index) => ({ cocktail: cocktail.englishName, step, presentation: getStepPresentation(cocktail, step, index, cocktail.steps.length) }))
+        .filter(({ presentation }) => presentation.label.startsWith("第 "))
+    );
+
+    expect(unmapped).toEqual([]);
   });
 
   it("shows photo processing and recoverable error states", () => {

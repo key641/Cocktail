@@ -4,7 +4,7 @@ import { getIngredientName } from "../data/ingredients";
 import type { Cocktail } from "../domain/types";
 import type { CSSProperties, ChangeEvent } from "react";
 import { SecondaryHeader } from "./SecondaryHeader";
-import { BartendingProcessVisual, type BartendingMotion } from "./BartendingProcessVisual";
+import { BartendingProcessVisual, type BartendingMotion, type BartendingVessel } from "./BartendingProcessVisual";
 import { triggerHaptic } from "../utils/haptics";
 
 type FollowAlongViewProps = {
@@ -17,68 +17,43 @@ type FollowAlongViewProps = {
   photoError?: string;
 };
 
-function shortStepLabel(step: string, index: number, stepCount: number) {
-  if (index === stepCount - 1 && /装饰|完成/.test(step)) {
-    return "完成装饰";
-  }
-
-  if (/轻压|压出|捣压/.test(step)) {
-    return "轻压出香";
-  }
-
-  if (/摇|摇匀/.test(step)) {
-    return "摇匀";
-  }
-
-  if (/滤入|过滤|双重过滤|滤/.test(step)) {
-    return "滤入杯中";
-  }
-
-  if (/搅拌|轻轻/.test(step)) {
-    return "轻轻搅拌";
-  }
-
-  if (/加入|倒入|加冰|补/.test(step)) {
-    return "加入材料";
-  }
-
-  return `第 ${index + 1} 步`;
-}
-
 type StepMotion = BartendingMotion | "garnish";
 
-function motionForStep(step: string, index: number, stepCount: number): StepMotion {
-  if (index === 0) {
-    if (/摇|摇匀/.test(step)) return "shake";
-  }
-
-  if (index === stepCount - 1 && /装饰|完成/.test(step)) {
-    return "garnish";
-  }
-
-  if (/摇|摇匀/.test(step)) {
-    return "shake";
-  }
-
-  if (/滤入|过滤|双重过滤|滤/.test(step)) {
-    return "strain";
-  }
-
-  if (/搅拌|轻轻|压/.test(step)) {
-    return "stir";
-  }
-
-  return "add";
-}
-
-const motionLabels: Record<StepMotion, string> = {
-  prepare: "器具就位",
-  add: "倒入酒液",
-  stir: "轻轻搅拌",
-  shake: "充分摇匀",
-  strain: "缓缓滤入",
-  garnish: "装饰落位"
+type StepPresentation = {
+  label: string;
+  motion: StepMotion;
+  status: string;
+  vessel?: BartendingVessel;
 };
+
+const mixingGlassCocktails = new Set(["negroni", "martini", "manhattan", "boulevardier", "sazerac", "bloody-mary"]);
+
+export function getStepPresentation(cocktail: Cocktail, step: string, index: number, stepCount: number): StepPresentation {
+  if (/杯口|盐边|糖边|涮杯/.test(step)) return { label: "处理杯口", motion: "rim", status: "杯口准备" };
+  if (/旁边倒一小杯|另配一小杯|佐饮/.test(step)) return { label: "准备佐饮", motion: "side-serve", status: "起泡酒单独佐饮" };
+  if (/搅打|搅拌机|电动搅拌/.test(step)) return { label: "搅打顺滑", motion: "blend", status: "搅拌机搅打" };
+  if (/捣|轻压|压散|压出/.test(step)) return { label: "轻捣出香", motion: "muddle", status: "轻压释放香气" };
+  if (/干摇|不加冰.*摇/.test(step)) return { label: "先干摇起泡", motion: "dry-shake", status: "无冰干摇" };
+  if (/摇匀|用力摇|摇至|再摇|加冰摇|摇 \d|摇\d/.test(step)) return { label: /再摇/.test(step) ? "加冰再摇" : "加冰摇匀", motion: "shake", status: "摇壶充分摇匀" };
+  if (/双重过滤|双滤/.test(step)) return { label: "双重过滤", motion: "strain", status: "细滤入杯" };
+  if (/滤入|过滤|滤进|滤/.test(step)) return { label: "过滤入杯", motion: "strain", status: "缓缓滤入" };
+  if (/倒入杯中/.test(step) && cocktail.id === "bloody-mary") return { label: "转杯倒入", motion: "transfer", status: "从调酒杯倒入" };
+  if (/沿杯壁|浮在|表面浮|顶层|形成渐层|淋入/.test(step)) return { label: "缓慢分层", motion: "layer", status: "沿杯壁分层" };
+  if (/搅拌|搅匀|提拉混合/.test(step)) {
+    const inMixingGlass = /调酒杯/.test(step) || mixingGlassCocktails.has(cocktail.id);
+    return inMixingGlass
+      ? { label: "加冰搅拌", motion: "stir", status: "调酒杯中搅拌", vessel: "mixing-glass" }
+      : { label: "杯中轻搅", motion: "stir-in-glass", status: "杯中轻轻混合", vessel: "serving-glass" };
+  }
+
+  const garnishOnly = index === stepCount - 1 && /装饰|放上|放入|放薄荷|用.*皮|拧.*皮|滴.*苦精|表达香气/.test(step);
+  if (garnishOnly) return { label: "完成装饰", motion: "garnish", status: "装饰落位" };
+
+  if (/摇壶/.test(step)) return { label: "材料入摇壶", motion: "combine", status: "倒入摇壶", vessel: "shaker" };
+  if (/调酒杯/.test(step)) return { label: "材料入调酒杯", motion: "combine", status: "倒入调酒杯", vessel: "mixing-glass" };
+  if (/加入|倒入|加冰|补|放满冰|加满.*冰|先倒|再倒/.test(step)) return { label: /冰/.test(step) && !/倒入|加入|补/.test(step) ? "杯中加冰" : "杯中加入材料", motion: "build", status: "杯中直调", vessel: "serving-glass" };
+  return { label: `第 ${index + 1} 步`, motion: "build", status: "按步骤完成", vessel: "serving-glass" };
+}
 
 function progressForStep(index: number, stepCount: number) {
   if (stepCount <= 1) {
@@ -104,14 +79,17 @@ export function FollowAlongView({
   const isPreparation = currentStage === 0;
   const recipeStepIndex = Math.max(0, currentStage - 1);
   const currentRecipeStep = cocktail.steps[recipeStepIndex];
-  const currentTitle = isPreparation ? "准备材料" : shortStepLabel(currentRecipeStep, recipeStepIndex, recipeStepCount);
+  const currentPresentation: StepPresentation = isPreparation
+    ? { label: "准备材料", motion: "prepare" as const, status: "器具就位" }
+    : getStepPresentation(cocktail, currentRecipeStep, recipeStepIndex, recipeStepCount);
+  const currentTitle = currentPresentation.label;
   const timelineStyle = { "--step-count": stageCount } as CSSProperties;
-  const motion = isPreparation ? "prepare" : motionForStep(currentRecipeStep, recipeStepIndex, recipeStepCount);
+  const motion = currentPresentation.motion;
   const buildProgress = isComplete ? 1 : isPreparation ? 0.12 : progressForStep(recipeStepIndex, recipeStepCount);
   const visualSpec = getCocktailVisualSpec(cocktail.id);
   const stages = [
     { label: "准备材料", detail: "先确认材料和用量，准备好冰块与工具。" },
-    ...cocktail.steps.map((step, index) => ({ label: shortStepLabel(step, index, recipeStepCount), detail: step }))
+    ...cocktail.steps.map((step, index) => ({ label: getStepPresentation(cocktail, step, index, recipeStepCount).label, detail: step }))
   ];
 
   function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
@@ -186,9 +164,9 @@ export function FollowAlongView({
                     buildProgress={buildProgress}
                   />
                 ) : (
-                  <BartendingProcessVisual key={currentStage} motion={motion} glassType={visualSpec.glassType} title={cocktail.englishName} />
+                  <BartendingProcessVisual key={currentStage} motion={motion} vessel={currentPresentation.vessel} glassType={visualSpec.glassType} title={cocktail.englishName} />
                 )}
-                <span className="motion-status" aria-hidden="true">{motionLabels[motion]}</span>
+                <span className="motion-status" aria-hidden="true">{currentPresentation.status}</span>
               </div>
               <div className="follow-step-copy">
                 <span>第 {currentStage + 1} 步</span>

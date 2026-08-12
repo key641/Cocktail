@@ -174,7 +174,7 @@ export const cocktails: Cocktail[] = [
       { ingredientId: "worcestershire", amount: "2 dash" },
       { ingredientId: "salt", amount: "少许" }
     ],
-    steps: ["所有材料倒入杯中。", "加冰后上下滚动混合。", "按口味补盐和柠檬。"],
+    steps: ["所有材料加入装冰的调酒杯。", "在调酒杯中轻轻搅拌均匀。", "倒入杯中，按口味补盐和柠檬。"],
     tasteProfile: { sweet: 0, sour: 2, bitter: 2, fresh: 2, strong: 1, fruity: 2, herbal: 2, bubbly: 0 },
     bartenderTip: "先少放盐和伍斯特酱，最后按口味补。"
   },

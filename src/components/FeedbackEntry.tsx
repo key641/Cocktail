@@ -104,12 +104,15 @@ export function FeedbackEntry({ context, messageId, compact = false }: FeedbackE
         throw new Error("Feedback API unavailable");
       }
 
+      saveFeedback(feedback);
       setDelivery("server");
       setSubmitted(true);
+      window.dispatchEvent(new CustomEvent("cocktail-feedback-saved", { detail: feedback }));
     } catch {
       saveFeedback(feedback);
       setDelivery("local");
       setSubmitted(true);
+      window.dispatchEvent(new CustomEvent("cocktail-feedback-saved", { detail: feedback }));
     } finally {
       setSubmitting(false);
     }

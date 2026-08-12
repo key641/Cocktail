@@ -5,6 +5,7 @@ import type { AgentRecommendationBundle, Citation, TrustSignal } from "../domain
 import type { CocktailRecommendation } from "../domain/types";
 import { SecondaryHeader } from "./SecondaryHeader";
 import { triggerHaptic } from "../utils/haptics";
+import { getRecipeAuditEntry } from "../data/recipeAudit";
 
 type ResultViewProps = {
   recommendation: CocktailRecommendation;
@@ -17,6 +18,8 @@ type ResultViewProps = {
   citations?: Citation[];
   onBack: () => void;
   onTryAnother: () => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: () => void;
 };
 
 export function ResultView({
@@ -29,7 +32,9 @@ export function ResultView({
   trustSignals = [],
   citations = [],
   onBack,
-  onTryAnother
+  onTryAnother,
+  isFavorite = false,
+  onToggleFavorite
 }: ResultViewProps) {
   const { cocktail, ownedIngredients, missingIngredients } = recommendation;
   const agentPrimary = agentRecommendation?.primary;
@@ -49,6 +54,15 @@ export function ResultView({
       }));
   const recipeSteps = isExternalRecommendation ? agentPrimary.recipe?.steps ?? [] : cocktail.steps;
   const bartenderTip = isExternalRecommendation ? agentPrimary.recipe?.bartenderTip || agentPrimary.reason : cocktail.bartenderTip;
+  const audit = getRecipeAuditEntry(cocktail.id);
+  const confidencePercent = agentPrimary ? Math.round(agentPrimary.confidence * 100) : null;
+  const sourceLabel = agentPrimary?.source === "external_verified"
+    ? "外部已核验"
+    : agentPrimary?.source === "external_inspiration"
+      ? "外部灵感"
+      : agentPrimary?.source === "classic_twist"
+        ? "经典改造"
+        : "本地经典酒单";
 
   return (
     <section className="screen result-screen">
@@ -69,6 +83,11 @@ export function ResultView({
           <CocktailVisual spec={getCocktailVisualSpec(cocktail.id)} title={cocktail.englishName} />
         )}
         <div className="recommendation-copy">
+          {onToggleFavorite && (
+            <button className={`favorite-button ${isFavorite ? "selected" : ""}`} type="button" aria-pressed={isFavorite} onClick={() => { triggerHaptic("selection"); onToggleFavorite(); }}>
+              <span aria-hidden="true">{isFavorite ? "♥" : "♡"}</span>{isFavorite ? "已收藏" : "收藏"}
+            </button>
+          )}
           <h2>{displayName}</h2>
           <p>{displaySubtitle}</p>
           <div className="tag-row">
@@ -88,6 +107,22 @@ export function ResultView({
           {trustSignals.map((signal) => (
             <span key={`${signal.type}-${signal.label}`} title={signal.description}>{signal.label}</span>
           ))}
+        </div>
+      )}
+
+      {agentPrimary && (
+        <div className="recommendation-confidence" aria-label={`推荐可信度 ${confidencePercent}%`}>
+          <span>{sourceLabel}</span>
+          <div><i style={{ width: `${confidencePercent}%` }} /></div>
+          <strong>{confidencePercent}%</strong>
+        </div>
+      )}
+
+      {!isExternalRecommendation && (
+        <div className={`recipe-audit-note ${audit.status}`}>
+          <strong>{audit.status === "verified" ? "官方方法已核对" : "酒单内部已复核"}</strong>
+          <span>{audit.source} · {audit.note}</span>
+          {audit.sourceUrl && <a href={audit.sourceUrl} target="_blank" rel="noreferrer">查看来源</a>}
         </div>
       )}
 

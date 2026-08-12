@@ -238,7 +238,7 @@ a:focus-visible {
 /* Navigation and page titles */
 .home-bottom-nav {
   bottom: 16px;
-  width: 290px;
+  width: 352px;
   padding: 4px;
   border: 1px solid rgba(30, 65, 48, 0.11);
   border-radius: 14px;
@@ -248,7 +248,7 @@ a:focus-visible {
 }
 
 .home-bottom-nav button {
-  min-width: 86px;
+  min-width: 0;
   min-height: 48px;
   border-radius: 10px;
   color: #78837c;
@@ -1067,7 +1067,7 @@ a:focus-visible {
 
   .home-bottom-nav {
     bottom: max(9px, env(safe-area-inset-bottom));
-    width: min(286px, calc(100vw - 28px - env(safe-area-inset-left) - env(safe-area-inset-right)));
+    width: min(352px, calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right)));
   }
 
   .section-heading.centered {
@@ -1286,6 +1286,22 @@ a:focus-visible {
   .recommendation-copy { padding: 0 8px 8px; }
   .step-actions { grid-template-columns: 1fr; }
   .step-actions .secondary-action { order: 2; }
+}
+
+@media (max-width: 840px) {
+  .chat-screen {
+    height: 100dvh;
+    padding: max(14px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  }
+
+  .chat-screen .secondary-header {
+    align-self: start;
+  }
+
+  .chat-screen .chat-input-card {
+    align-self: end;
+    margin-bottom: 0;
+  }
 }
 
 @media (min-width: 560px) and (max-width: 840px) and (max-height: 560px) and (orientation: landscape) {

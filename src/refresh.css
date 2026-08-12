@@ -117,7 +117,8 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, a:focus-visib
   position: absolute;
   left: 50%;
   bottom: 18px;
-  width: 300px;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  width: 352px;
   padding: 5px;
   border: 1px solid rgba(33,65,51,.13);
   border-radius: 16px;
@@ -126,7 +127,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, a:focus-visib
   backdrop-filter: blur(16px);
   transform: translateX(-50%);
 }
-.home-bottom-nav button { min-width: 88px; min-height: 50px; border-radius: 11px; }
+.home-bottom-nav button { min-width: 0; min-height: 50px; border-radius: 11px; }
 .home-bottom-nav .active { color: #f5f7f2; background: var(--olive); }
 .bottom-nav-icon { width: 19px; height: 19px; }
 
@@ -179,6 +180,18 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, a:focus-visib
 }
 .chat-input-card textarea { min-height: 48px; max-height: 120px; padding: 13px 12px; border: 0; background: transparent; resize: none; }
 .chat-input-card .primary-action { min-width: 82px; min-height: 44px; border-radius: 12px; }
+.chat-input-card .chat-send-button {
+  display: grid;
+  width: 48px;
+  min-width: 48px;
+  height: 48px;
+  min-height: 48px;
+  padding: 0;
+  border-radius: 50%;
+  place-items: center;
+}
+.chat-send-button svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.chat-send-spinner { width: 17px; height: 17px; border: 1.5px solid rgba(255,255,255,.38); border-top-color: currentColor; border-radius: 50%; animation: chat-send-spin 760ms linear infinite; }
 .primary-action { border-color: var(--olive); background: var(--olive); }
 .feedback-panel { border-color: rgba(37,76,61,.16); border-radius: 20px; background: #fbfcf8; box-shadow: 0 28px 80px rgba(22,45,34,.18); }
 
@@ -339,7 +352,7 @@ button:disabled { cursor: not-allowed; opacity: .46; box-shadow: none; transform
   .home-actions { gap: 8px; }
   .home-action-card { min-height: 78px; padding: 13px; }
   .home-action-primary { min-height: 88px; padding: 16px; }
-  .home-bottom-nav { bottom: max(10px,env(safe-area-inset-bottom)); width: min(300px,calc(100vw - 32px - env(safe-area-inset-left) - env(safe-area-inset-right))); }
+  .home-bottom-nav { bottom: max(10px,env(safe-area-inset-bottom)); width: min(352px,calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right))); }
   .menu-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; }
   .menu-card, .menu-card:nth-child(3n + 2) { min-height: 250px; padding: 14px; transform: none; }
   .menu-card .cocktail-visual { height: 140px; }
@@ -382,7 +395,7 @@ button:disabled { cursor: not-allowed; opacity: .46; box-shadow: none; transform
   .home-action-card { min-height: 54px; padding: 10px 12px; }
   .home-action-primary { min-height: 64px; }
   .home-action-card small { display: none; }
-  .home-bottom-nav { left: auto; right: max(14px,env(safe-area-inset-right)); bottom: max(10px,env(safe-area-inset-bottom)); width: 280px; transform: none; }
+  .home-bottom-nav { left: auto; right: max(14px,env(safe-area-inset-right)); bottom: max(10px,env(safe-area-inset-bottom)); width: 352px; transform: none; }
 }
 
 @media (max-width: 380px) {
@@ -645,18 +658,71 @@ button:disabled { cursor: not-allowed; opacity: .46; box-shadow: none; transform
 .share-secondary-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
 .share-secondary-actions .share-save-note { grid-column: 1 / -1; margin: 0; }
 
+.favorite-button { position: absolute; top: 18px; right: 18px; display: inline-flex; align-items: center; gap: 6px; min-height: 40px !important; padding: 7px 12px; border: 1px solid var(--hairline); border-radius: 999px; color: #52645a; background: rgba(255,255,253,.78); }
+.favorite-button span { color: #9b6a62; font-size: 18px; line-height: 1; }
+.favorite-button.selected { color: #315846; border-color: rgba(49,88,70,.24); background: #f0f5ed; }
+.recommendation-copy { position: relative; }
+.recipe-audit-note { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: min(100%,900px); margin: 12px auto 0; padding: 13px 16px; border: 1px solid var(--hairline); border-radius: 13px; color: #68766e; background: rgba(255,255,253,.66); font-size: 12px; }
+.recipe-audit-note strong { color: #315846; white-space: nowrap; }
+.recipe-audit-note a { color: #315846; white-space: nowrap; text-decoration: underline; text-underline-offset: 3px; }
+.recipe-audit-note.verified { border-color: rgba(70,116,88,.2); background: #f1f6ee; }
+.recommendation-confidence { display: grid; grid-template-columns: auto minmax(80px,1fr) auto; align-items: center; gap: 10px; width: min(100%,900px); margin: 10px auto 0; color: #66756d; font-size: 12px; }
+.recommendation-confidence > div { height: 4px; overflow: hidden; border-radius: 999px; background: rgba(49,88,70,.1); }
+.recommendation-confidence i { display: block; height: 100%; border-radius: inherit; background: #668b77; }
+.recommendation-confidence strong { color: #315846; }
+
+.my-bar-screen { padding-inline: clamp(20px,8vw,104px); }
+.my-bar-screen > * { width: min(100%,900px); margin-inline: auto; }
+.my-bar-summary { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-top: 26px; }
+.my-bar-summary div { padding: 20px; border: 1px solid var(--hairline); border-radius: 15px; background: rgba(255,255,253,.66); }
+.my-bar-summary strong { display: block; color: #274b3b; font-family: var(--font-display); font-size: 32px; font-weight: 500; }
+.my-bar-summary span { color: var(--muted); font-size: 12px; }
+.my-bar-section { margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--hairline); }
+.my-bar-section .content-section-head button { min-height: 36px !important; padding: 6px 11px; border: 1px solid var(--hairline); border-radius: 999px; color: #315846; background: rgba(255,255,253,.7); }
+.my-bar-empty { width: 100%; padding: 22px; border: 1px dashed rgba(49,88,70,.22); border-radius: 14px; color: #607067; background: #f6f8f3; text-align: left; }
+.my-cocktail-row { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
+.my-cocktail-row > button { padding: 12px; border: 1px solid var(--hairline); border-radius: 14px; background: rgba(255,255,253,.7); text-align: left; }
+.my-cocktail-row .cocktail-visual { height: 130px; }
+.my-cocktail-row strong,.my-cocktail-row span { display: block; }
+.my-cocktail-row strong { color: #274b3b; font-family: var(--font-display); font-size: 17px; }
+.my-cocktail-row span { margin-top: 3px; color: var(--muted); font-size: 12px; }
+.my-recent-list { display: grid; gap: 0; }
+.my-recent-list button { display: grid; grid-template-columns: 1fr auto 24px; align-items: center; min-height: 54px; padding: 0 4px; border: 0; border-bottom: 1px solid var(--hairline); color: #294b3d; background: transparent; text-align: left; }
+.my-recent-list small { color: var(--muted); }
+.my-recent-list em { color: #698076; font-style: normal; text-align: right; }
+.my-bar-muted,.preference-memory p { color: var(--muted); line-height: 1.7; }
+
 @media (max-width: 840px) {
   .secondary-header { margin-bottom: 22px; padding-top: 58px; padding-right: 0; }
   .secondary-header.compact { padding-top: 4px; padding-right: 96px; }
   .chat-screen {
     display: grid;
     grid-template-rows: auto minmax(0,1fr) auto;
+    height: 100%;
     overflow: hidden;
     padding: max(14px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));
   }
-  .chat-screen .secondary-header { width: 100%; margin-bottom: 0; }
-  .chat-messages-area { min-height: 0; }
-  .chat-input-card { position: relative; bottom: auto; margin-top: 0; }
+  .chat-screen .secondary-header {
+    position: relative;
+    z-index: 3;
+    width: 100%;
+    margin-bottom: 0;
+    background: rgba(250,251,247,.94);
+    backdrop-filter: blur(14px);
+  }
+  .chat-messages-area {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scroll-padding-block: 16px;
+  }
+  .chat-input-card {
+    position: relative;
+    z-index: 4;
+    bottom: auto;
+    margin-top: 0;
+    padding-bottom: max(8px,env(safe-area-inset-bottom));
+  }
   .follow-workspace { padding: 16px; }
   .follow-step-main { grid-template-columns: minmax(120px,.52fr) minmax(210px,1fr); gap: 12px; }
   .follow-step-visual { min-height: 260px; padding: 10px; }
@@ -677,6 +743,11 @@ button:disabled { cursor: not-allowed; opacity: .46; box-shadow: none; transform
   .ingredient-screen .taste-sliders { grid-template-columns: 1fr; gap: 8px; }
   .ingredient-screen .taste-sliders label { grid-template-columns: 48px 1fr; }
   .secondary-action-dock { margin-inline: -2px !important; }
+  .my-bar-summary div { padding: 14px 12px; }
+  .my-bar-summary strong { font-size: 26px; }
+  .my-cocktail-row { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .recipe-audit-note { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .favorite-button { top: 10px; right: 8px; }
   .result-screen .hero-recommendation-card { grid-template-columns: 42% 58%; min-height: 280px; padding: 14px 12px 14px 4px; }
   .result-screen .hero-recommendation-card .cocktail-visual { width: 120%; margin-left: -16%; }
   .result-screen .recommendation-copy h2 { font-size: 28px; }
@@ -797,9 +868,14 @@ button:disabled { cursor: not-allowed; opacity: .46; box-shadow: none; transform
   100% { opacity: 1; transform: translateY(0) rotate(0) scale(1); }
 }
 
+@keyframes chat-send-spin {
+  to { transform: rotate(360deg); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bartending-process-visual *,
-  .cocktail-motion-garnish .garnish-layer { animation: none !important; }
+  .cocktail-motion-garnish .garnish-layer,
+  .chat-send-spinner { animation: none !important; }
 }
 
 @media (max-width: 360px) {

@@ -11,6 +11,7 @@ import { MenuView } from "./components/MenuView";
 import { ResultView } from "./components/ResultView";
 import { ShareCardView } from "./components/ShareCardView";
 import { SvgAtomGallery } from "./components/SvgAtomGallery";
+import { MyBarView } from "./components/MyBarView";
 import ConnectionStatus from "./components/ConnectionStatus";
 import { cocktails } from "./data/cocktails";
 import { getIngredientName } from "./data/ingredients";
@@ -25,11 +26,12 @@ import type { AgentRecommendationBundle, AgentSessionState, Citation, TrustSigna
 import type { CocktailRecommendation, TasteProfile } from "./domain/types";
 import { rankForExploration } from "./domain/recommendation";
 import { API_BASE } from "./config/api";
+import { addRecentCocktail, loadUserProfile, saveUserProfile, toggleFavoriteCocktail } from "./domain/userProfile";
 
-type Screen = "home" | "chat" | "explore" | "ingredients" | "menu" | "atoms" | "result" | "follow" | "share";
+type Screen = "home" | "chat" | "explore" | "ingredients" | "menu" | "atoms" | "my" | "result" | "follow" | "share";
 
 function isBottomNavScreen(s: Screen): boolean {
-  return s === "home" || s === "menu" || s === "atoms";
+  return s === "home" || s === "menu" || s === "atoms" || s === "my";
 }
 
 const defaultTasteProfile: TasteProfile = {
@@ -123,6 +125,15 @@ function buildAiResponseText(result: Record<string, unknown>): string {
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>("home");
+  const [userProfile, setUserProfile] = useState(loadUserProfile);
+  const [ingredientPurpose, setIngredientPurpose] = useState<"recommend" | "manage">("recommend");
+  const [feedbackCount, setFeedbackCount] = useState(() => {
+    try {
+      return JSON.parse(window.localStorage.getItem("cocktail-feedback") ?? "[]").length as number;
+    } catch {
+      return 0;
+    }
+  });
   const scrollPositions = useRef<Partial<Record<Screen, number>>>({});
 
   function navigateTo(next: Screen) {
@@ -155,13 +166,7 @@ export default function App() {
   const [latestAlternatives, setLatestAlternatives] = useState<CocktailRecommendation[]>([]);
 
   /* --- agent session --- */
-  const [agentSession, setAgentSession] = useState<AgentSessionState>({
-    preferredFlavors: [],
-    dislikedFlavors: [],
-    availableIngredients: [],
-    lastRecommendationIds: [],
-    rejectedRecommendationIds: []
-  });
+  const [agentSession, setAgentSession] = useState<AgentSessionState>(userProfile.agentSession);
 
   /* --- follow / share --- */
   const [activeStep, setActiveStep] = useState(0);
@@ -184,6 +189,25 @@ export default function App() {
 
   const ownedNames = useMemo(() => ownedIngredients.map(getIngredientName), [ownedIngredients]);
 
+  useEffect(() => {
+    saveUserProfile(userProfile);
+  }, [userProfile]);
+
+  useEffect(() => {
+    const handleFeedbackSaved = () => setFeedbackCount((count) => count + 1);
+    window.addEventListener("cocktail-feedback-saved", handleFeedbackSaved);
+    return () => window.removeEventListener("cocktail-feedback-saved", handleFeedbackSaved);
+  }, []);
+
+  useEffect(() => {
+    setUserProfile((current) => ({ ...current, agentSession }));
+  }, [agentSession]);
+
+  useEffect(() => {
+    if (!recommendation) return;
+    setUserProfile((current) => addRecentCocktail(current, recommendation.cocktail.id));
+  }, [recommendation]);
+
   /* ------------------------------------------------------------------ */
   /*  Navigation handlers                                                */
   /* ------------------------------------------------------------------ */
@@ -199,7 +223,7 @@ export default function App() {
     setOwnedIngredients([]);
     setUnknownIngredients([]);
     setAgentRecommendation(undefined);
-    setTrustSignals([]);
+    setTrustSignals([{ type: "local_classic", label: "本地经典酒单", description: "配方来自产品内维护的经典酒单。" }]);
     setCitations([]);
     setRecommendation(result);
     setResultBackScreen("home");
@@ -210,6 +234,17 @@ export default function App() {
     setIsParsing(true);
     const parsed = await parseIngredientsWithFallback(freeText);
     const merged = Array.from(new Set([...selected, ...parsed.ingredients]));
+    if (ingredientPurpose === "manage") {
+      setUserProfile((current) => ({
+        ...current,
+        barIngredientIds: merged,
+        agentSession: { ...current.agentSession, availableIngredients: merged }
+      }));
+      setAgentSession((current) => ({ ...current, availableIngredients: merged }));
+      setIsParsing(false);
+      navigateTo("my");
+      return;
+    }
     const [result] = recommendByIngredients({
       cocktails,
       ownedIngredientIds: merged,
@@ -218,7 +253,7 @@ export default function App() {
     setOwnedIngredients(merged);
     setUnknownIngredients(parsed.unknown);
     setAgentRecommendation(undefined);
-    setTrustSignals([]);
+    setTrustSignals([{ type: "local_classic", label: "本地经典酒单", description: "根据你现有的材料在本地酒单中匹配。" }]);
     setCitations([]);
     setRecommendation(result);
     setIsParsing(false);
@@ -386,6 +421,8 @@ function buildLocalFallbackBundle(
             setLatestAlternatives(primaryRec ? [primaryRec, ...altRecs] : altRecs);
             setOwnedIngredients(data.toolResults?.ownedIngredients ?? []);
             setUnknownIngredients([]);
+            setTrustSignals((data.trustSignals as TrustSignal[]) ?? []);
+            setCitations((data.citations as Citation[]) ?? []);
 
             const aiText = buildAiResponseText(data);
 
@@ -453,6 +490,17 @@ function buildLocalFallbackBundle(
       setUnknownIngredients([]);
       setLatestBundle(fallbackBundle);
       setLatestAlternatives([result.recommendation, ...alternatives]);
+      setAgentSession((current) => ({
+        ...current,
+        preferredFlavors: Array.from(new Set([...current.preferredFlavors, ...parsed.preference.flavorPreferences])),
+        dislikedFlavors: Array.from(new Set([...current.dislikedFlavors, ...parsed.preference.dislikedFlavors])),
+        preferredStrength: parsed.preference.strengthPreference === "unknown" ? current.preferredStrength : parsed.preference.strengthPreference,
+        availableIngredients: Array.from(new Set([...current.availableIngredients, ...parsed.preference.availableIngredients])),
+        lastRecommendationIds: [
+          result.recommendation.cocktail.id,
+          ...current.lastRecommendationIds.filter((id) => id !== result.recommendation.cocktail.id)
+        ].slice(0, 5)
+      }));
 
       setChatMessages((prev) =>
         prev.map((msg) =>
@@ -495,8 +543,6 @@ function buildLocalFallbackBundle(
         setRecommendation(primaryRec);
         setOwnedIngredients(primaryRec.ownedIngredients);
       }
-      setTrustSignals([]);
-      setCitations([]);
       setResultBackScreen("chat");
       navigateTo("result");
       return;
@@ -510,7 +556,7 @@ function buildLocalFallbackBundle(
       setAgentRecommendation(undefined);
       setBartenderLine(match.reason);
       setOwnedIngredients(match.ownedIngredients);
-      setTrustSignals([]);
+      setTrustSignals([{ type: "local_classic", label: "本地经典酒单" }]);
       setCitations([]);
       setResultBackScreen("chat");
       navigateTo("result");
@@ -522,11 +568,14 @@ function buildLocalFallbackBundle(
   /* ------------------------------------------------------------------ */
 
   function showMenuCocktail(rec: CocktailRecommendation) {
-    setOwnedIngredients([]);
+    const owned = rec.cocktail.ingredients
+      .map((ingredient) => ingredient.ingredientId)
+      .filter((id) => userProfile.barIngredientIds.includes(id));
+    setOwnedIngredients(owned);
     setUnknownIngredients([]);
     setBartenderLine("");
     setAgentRecommendation(undefined);
-    setTrustSignals([]);
+    setTrustSignals([{ type: "local_classic", label: "本地经典酒单", description: "来自当前维护的酒单内容。" }]);
     setCitations([]);
     setRecommendation(rec);
     setResultBackScreen("menu");
@@ -586,7 +635,7 @@ function buildLocalFallbackBundle(
           <Home
             onChat={() => navigateTo("chat")}
             onExplore={() => navigateTo("explore")}
-            onIngredients={() => navigateTo("ingredients")}
+            onIngredients={() => { setIngredientPurpose("recommend"); navigateTo("ingredients"); }}
           />
         )}
         {screen === "chat" && (
@@ -607,10 +656,25 @@ function buildLocalFallbackBundle(
         {screen === "atoms" && (
           <SvgAtomGallery onBack={() => navigateTo("home")} />
         )}
+        {screen === "my" && (
+          <MyBarView
+            profile={userProfile}
+            feedbackCount={feedbackCount}
+            onManageIngredients={() => { setIngredientPurpose("manage"); navigateTo("ingredients"); }}
+            onSelectCocktail={(item) => { showMenuCocktail(item); setResultBackScreen("my"); }}
+            onClearHistory={() => setUserProfile((current) => ({ ...current, recentCocktailIds: [] }))}
+          />
+        )}
         {screen === "ingredients" && (
           <IngredientPanel
             isParsing={isParsing}
-            onBack={() => navigateTo("home")}
+            initialSelected={ingredientPurpose === "manage" ? userProfile.barIngredientIds : undefined}
+            saveLabel={ingredientPurpose === "manage" ? "保存到我的酒柜" : undefined}
+            title={ingredientPurpose === "manage" ? "管理我的酒柜" : undefined}
+            description={ingredientPurpose === "manage" ? "勾选家里现有的酒和辅料，酒保会一直记住" : undefined}
+            backLabel={ingredientPurpose === "manage" ? "返回我的酒柜" : undefined}
+            allowEmpty={ingredientPurpose === "manage"}
+            onBack={() => navigateTo(ingredientPurpose === "manage" ? "my" : "home")}
             onComplete={showIngredientResult}
           />
         )}
@@ -626,6 +690,8 @@ function buildLocalFallbackBundle(
             citations={citations}
             onBack={() => navigateTo(resultBackScreen)}
             onTryAnother={startFollowAlong}
+            isFavorite={userProfile.favoriteCocktailIds.includes(recommendation.cocktail.id)}
+            onToggleFavorite={() => setUserProfile((current) => toggleFavoriteCocktail(current, recommendation.cocktail.id))}
           />
         )}
         {screen === "follow" && recommendation && (
@@ -651,7 +717,7 @@ function buildLocalFallbackBundle(
         )}
         {isBottomNavScreen(screen) && (
           <BottomNav
-            active={screen === "menu" ? "menu" : screen === "atoms" ? "atoms" : "home"}
+            active={screen === "menu" ? "menu" : screen === "atoms" ? "atoms" : screen === "my" ? "my" : "home"}
             onNavigate={(s: string) => navigateTo(s as Screen)}
           />
         )}

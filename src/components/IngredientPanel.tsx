@@ -8,6 +8,12 @@ type IngredientPanelProps = {
   isParsing: boolean;
   onBack: () => void;
   onComplete: (selected: string[], freeText: string, tasteProfile: TasteProfile) => void;
+  initialSelected?: string[];
+  saveLabel?: string;
+  title?: string;
+  description?: string;
+  backLabel?: string;
+  allowEmpty?: boolean;
 };
 
 const categoryLabels: Record<IngredientCategory, string> = {
@@ -31,8 +37,18 @@ const tasteLabels: Array<[keyof TasteProfile, string]> = [
 const defaultTaste: TasteProfile = { sweet: 2, sour: 3, bitter: 1, fresh: 4, strong: 2, fruity: 2, herbal: 1, bubbly: 0 };
 const categoryOrder: IngredientCategory[] = ["spirit", "liqueur", "citrus", "juice", "mixer", "sweetener", "bitter", "herb", "garnish"];
 
-export function IngredientPanel({ isParsing, onBack, onComplete }: IngredientPanelProps) {
-  const [selected, setSelected] = useState<string[]>(["gin", "lemon-juice", "simple-syrup"]);
+export function IngredientPanel({
+  isParsing,
+  onBack,
+  onComplete,
+  initialSelected,
+  saveLabel,
+  title = "看看手边能调什么",
+  description = "写一句话，或按类别补充材料",
+  backLabel = "返回首页",
+  allowEmpty = false
+}: IngredientPanelProps) {
+  const [selected, setSelected] = useState<string[]>(initialSelected ?? ["gin", "lemon-juice", "simple-syrup"]);
   const [freeText, setFreeText] = useState("");
   const [taste, setTaste] = useState<TasteProfile>(defaultTaste);
   const [activeCategory, setActiveCategory] = useState<IngredientCategory>("spirit");
@@ -59,10 +75,10 @@ export function IngredientPanel({ isParsing, onBack, onComplete }: IngredientPan
   return (
     <section className="screen preference-screen ingredient-screen">
       <SecondaryHeader
-        title="看看手边能调什么"
-        description="写一句话，或按类别补充材料"
+        title={title}
+        description={description}
         progress={`已选 ${selected.length} 种`}
-        backLabel="返回首页"
+        backLabel={backLabel}
         onBack={onBack}
       />
 
@@ -125,8 +141,8 @@ export function IngredientPanel({ isParsing, onBack, onComplete }: IngredientPan
 
       <div className="secondary-action-dock">
         <span>{freeText.trim() ? "会一起理解你写下的材料" : `根据 ${selected.length} 种材料匹配`}</span>
-        <button className="primary-action" onClick={() => { triggerHaptic("action"); onComplete(selected, freeText, taste); }} disabled={isParsing || (!selected.length && !freeText.trim())}>
-          {isParsing ? "正在识别材料" : "看看能调什么"}
+        <button className="primary-action" onClick={() => { triggerHaptic("action"); onComplete(selected, freeText, taste); }} disabled={isParsing || (!allowEmpty && !selected.length && !freeText.trim())}>
+          {isParsing ? "正在识别材料" : saveLabel ?? "看看能调什么"}
         </button>
       </div>
     </section>

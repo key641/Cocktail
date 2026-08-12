@@ -364,11 +364,20 @@ export function ChatPanel({
           rows={1}
         />
         <button
-          className="primary-action"
+          className="primary-action chat-send-button"
           onClick={submit}
           disabled={isThinking || !text.trim()}
+          aria-label={isThinking ? "正在理解你的口味" : "发送"}
+          title={isThinking ? "正在理解你的口味" : "发送"}
         >
-          {isThinking ? "正在理解你的口味" : "发送"}
+          {isThinking ? (
+            <span className="chat-send-spinner" aria-hidden="true" />
+          ) : (
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 12h13" />
+              <path d="m13 6 6 6-6 6" />
+            </svg>
+          )}
         </button>
       </div>
     </section>

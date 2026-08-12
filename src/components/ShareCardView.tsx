@@ -5,6 +5,7 @@ import type { Cocktail } from "../domain/types";
 import { useState } from "react";
 import { SecondaryHeader } from "./SecondaryHeader";
 import { triggerHaptic } from "../utils/haptics";
+import { createShareImage, shareImageFilename } from "../domain/shareImage";
 
 type ShareCardViewProps = {
   cocktail: Cocktail;
@@ -31,6 +32,7 @@ export function ShareCardView({
   onRetake
 }: ShareCardViewProps) {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const caption = generateShareCaption({
     cocktail,
     style: captionStyle,
@@ -47,6 +49,26 @@ export function ShareCardView({
       setCopyState("error");
     }
     window.setTimeout(() => setCopyState("idle"), 1800);
+  }
+
+  async function saveShareImage() {
+    setSaveState("saving");
+    try {
+      const blob = await createShareImage(cocktail, photoUrl, caption);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = shareImageFilename(cocktail);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1200);
+      triggerHaptic("success");
+      setSaveState("saved");
+    } catch {
+      setSaveState("error");
+    }
+    window.setTimeout(() => setSaveState("idle"), 2200);
   }
 
   return (
@@ -93,9 +115,11 @@ export function ShareCardView({
       </div>
 
       <div className="share-secondary-actions">
-        <button className="secondary-action compact-action" type="button" disabled aria-describedby="share-save-note">保存分享图</button>
+        <button className="secondary-action compact-action" type="button" disabled={saveState === "saving"} onClick={() => void saveShareImage()}>
+          {saveState === "saving" ? "正在生成" : saveState === "saved" ? "图片已保存" : saveState === "error" ? "保存失败，请重试" : "保存分享图"}
+        </button>
         <button className="secondary-action compact-action" type="button" onClick={() => { triggerHaptic("selection"); onRetake(); }}>重新上传照片</button>
-        <small className="share-save-note" id="share-save-note">图片保存还在完善，当前可先复制文案。</small>
+        <small className="share-save-note" id="share-save-note">生成竖版 PNG，可直接保存到相册或分享。</small>
       </div>
       <div className="secondary-action-dock">
         <button className="primary-action" type="button" onClick={() => void copyCaption()}>

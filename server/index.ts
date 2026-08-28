@@ -278,7 +278,8 @@ app.post("/api/agent/chat", async (request, response) => {
   const result = await runBartenderAgent({
     text,
     client: openAIClient,
-    session: request.body?.session
+    session: request.body?.session,
+    engine: request.body?.engine === "react" || request.body?.engine === "pipeline" ? request.body.engine : undefined
   });
   response.json(result);
 });
@@ -305,6 +306,7 @@ data: ${JSON.stringify(data)}
       text,
       client: openAIClient,
       session: request.body?.session,
+      engine: request.body?.engine === "react" || request.body?.engine === "pipeline" ? request.body.engine : undefined,
       onTrace: (entry) => sendSSE("trace", entry),
     });
 
@@ -313,10 +315,12 @@ data: ${JSON.stringify(data)}
         message: result.message,
         understanding: result.understanding,
         agentTrace: result.agentTrace,
+        sessionPatch: result.sessionPatch,
       });
     } else {
       sendSSE("result", {
         status: result.status,
+        intent: result.intent,
         message: result.message,
         understanding: result.understanding,
         agentTrace: result.agentTrace,
@@ -326,6 +330,9 @@ data: ${JSON.stringify(data)}
         trustSignals: result.trustSignals,
         citations: result.citations,
         toolResults: result.toolResults,
+        clarification: result.clarification,
+        followUpActions: result.followUpActions,
+        sessionPatch: result.sessionPatch,
       });
     }
 

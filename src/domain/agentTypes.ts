@@ -9,7 +9,13 @@ export type AgentIntent =
   | "external_inspiration"
   | "share_caption"
   | "safe_mocktail"
-  | "smalltalk";
+  | "smalltalk"
+  | "clarification";
+
+export type AgentClarification = {
+  question: string;
+  options: string[];
+};
 
 export type TrustSignal = {
   type: "local_classic" | "iba_source" | "external_source" | "classic_twist" | "not_official" | "uncertain";

@@ -17,6 +17,7 @@ type ResultViewProps = {
   trustSignals?: TrustSignal[];
   citations?: Citation[];
   onBack: () => void;
+  onSwapDrink?: () => void;
   onTryAnother: () => void;
   isFavorite?: boolean;
   onToggleFavorite?: () => void;
@@ -32,6 +33,7 @@ export function ResultView({
   trustSignals = [],
   citations = [],
   onBack,
+  onSwapDrink,
   onTryAnother,
   isFavorite = false,
   onToggleFavorite
@@ -178,7 +180,7 @@ export function ResultView({
       </details>
 
       <div className="secondary-action-dock split-actions">
-        <button className="secondary-action" onClick={() => { triggerHaptic("selection"); onBack(); }}>换一杯</button>
+        <button className="secondary-action" onClick={() => { triggerHaptic("selection"); (onSwapDrink ?? onBack)(); }}>换一杯</button>
         {!isExternalRecommendation && (
           <button className="primary-action" onClick={() => { triggerHaptic("action"); onTryAnother(); }}>开始调制</button>
         )}

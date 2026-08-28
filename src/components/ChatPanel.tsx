@@ -25,6 +25,7 @@ export type ChatMessage = {
   thinkingSteps?: ThinkingStep[];
   recommendation?: AgentRecommendationBundle;
   safetyMessage?: string;
+  clarification?: { question: string; options: string[] };
   typingSpeed?: number;
   isPending?: boolean;
 };
@@ -162,10 +163,14 @@ function RecommendationMiniCard({
 
 function AiBubble({
   message,
-  onSelectRecommendation
+  onSelectRecommendation,
+  onPickOption,
+  optionsDisabled
 }: {
   message: ChatMessage;
   onSelectRecommendation: (index: number) => void;
+  onPickOption: (text: string) => void;
+  optionsDisabled: boolean;
 }) {
   const hasSteps = message.thinkingSteps && message.thinkingSteps.length > 0;
   const isPendingOnly = message.isPending && !message.text && !message.recommendation;
@@ -208,6 +213,19 @@ function AiBubble({
 
         {message.safetyMessage && (
           <div className="soft-warning">{message.safetyMessage}</div>
+        )}
+
+        {!isPendingOnly && !isTyping && message.clarification && message.clarification.options.length > 0 && (
+          <div className="chat-bubble examples-bar clarification-options">
+            <strong>快捷回复</strong>
+            <div className="chat-examples">
+              {message.clarification.options.map((option) => (
+                <button key={option} onClick={() => onPickOption(option)} disabled={optionsDisabled}>
+                  {option}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
 
         {recommendations.length > 0 && (
@@ -335,6 +353,8 @@ export function ChatPanel({
               key={msg.id}
               message={msg}
               onSelectRecommendation={onSelectRecommendation}
+              onPickOption={onSubmit}
+              optionsDisabled={isThinking}
             />
           )
         )}

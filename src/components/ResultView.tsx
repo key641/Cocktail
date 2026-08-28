@@ -15,6 +15,7 @@ type ResultViewProps = {
   trustSignals?: TrustSignal[];
   citations?: Citation[];
   onBack: () => void;
+  onSwapDrink?: () => void;
   onTryAnother: () => void;
 };
 
@@ -28,6 +29,7 @@ export function ResultView({
   trustSignals = [],
   citations = [],
   onBack,
+  onSwapDrink,
   onTryAnother
 }: ResultViewProps) {
   const { cocktail, ownedIngredients, missingIngredients } = recommendation;
@@ -144,7 +146,7 @@ export function ResultView({
       </div>
 
       <div className="secondary-action-dock split-actions">
-        <button className="secondary-action" onClick={onBack}>换一杯</button>
+        <button className="secondary-action" onClick={onSwapDrink ?? onBack}>换一杯</button>
         {!isExternalRecommendation && (
           <button className="primary-action" onClick={onTryAnother}>开始调制</button>
         )}

@@ -24,15 +24,54 @@ import {
   trustSignalsForSource
 } from "./orchestration";
 import type { AgentDrinkCandidate, AgentSessionState, AgentTraceEntry, BartenderAgentResponse } from "./types";
+import { runReActAgent } from "./react/adapter";
+
+export type AgentEngine = "react" | "pipeline";
 
 type RunBartenderAgentInput = {
   text: string;
   client?: OpenAIJsonClient;
   session?: AgentSessionState;
   onTrace?: (entry: AgentTraceEntry) => void;
+  engine?: AgentEngine;
 };
 
-export async function runBartenderAgent({ text, client, session, onTrace }: RunBartenderAgentInput): Promise<BartenderAgentResponse> {
+export function resolveAgentEngine(value?: string): AgentEngine {
+  return value === "react" ? "react" : "pipeline";
+}
+
+function envInt(name: string, fallback: number): number {
+  const parsed = Number.parseInt(process.env[name] ?? "", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+export async function runBartenderAgent(input: RunBartenderAgentInput): Promise<BartenderAgentResponse> {
+  const engine = input.engine ?? resolveAgentEngine(process.env.AGENT_ENGINE);
+
+  if (engine === "react" && input.client) {
+    try {
+      return await runReActAgent({
+        text: input.text,
+        client: input.client,
+        session: input.session,
+        onTrace: input.onTrace,
+        maxSteps: envInt("REACT_MAX_STEPS", 4),
+        wallClockMs: envInt("REACT_WALL_CLOCK_MS", 20000)
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      input.onTrace?.({
+        step: "引擎降级",
+        detail: `ReAct 引擎失败（${message}），降级到固定管线`,
+        data: { engine: "pipeline", reason: message }
+      });
+    }
+  }
+
+  return runPipelineAgent(input);
+}
+
+export async function runPipelineAgent({ text, client, session, onTrace }: RunBartenderAgentInput): Promise<BartenderAgentResponse> {
   const parsed = await parseRequestForAgent({
     text,
     client

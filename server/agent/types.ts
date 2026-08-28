@@ -16,7 +16,8 @@ export type AgentIntent =
   | "external_inspiration"
   | "share_caption"
   | "safe_mocktail"
-  | "smalltalk";
+  | "smalltalk"
+  | "clarification";
 
 export type AgentFollowUpAction =
   | "view_recipe"
@@ -148,12 +149,18 @@ export type AgentTraceEntry = {
   data?: unknown;
 };
 
+export type AgentClarification = {
+  question: string;
+  options: string[];
+};
+
 export type BartenderAgentResponse = {
   status: "ok" | "safety_blocked" | "needs_confirmation";
   agentMode: AgentMode;
   intent: AgentIntent;
   message: string;
   bartenderJudgement: string;
+  clarification?: AgentClarification;
   narrative?: RecommendationNarrative;
   understanding: {
     flavors: string[];

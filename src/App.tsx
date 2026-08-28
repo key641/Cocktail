@@ -373,11 +373,12 @@ function buildLocalFallbackBundle(
             setUnknownIngredients([]);
 
             const aiText = buildAiResponseText(data);
+            const clarification = data.clarification as { question: string; options: string[] } | undefined;
 
             setChatMessages((prev) =>
               prev.map((msg) =>
                 msg.id === aiId
-                  ? { ...msg, text: aiText, thinkingSteps: [...thinkingSteps], recommendation: bundle, isPending: false }
+                  ? { ...msg, text: aiText, thinkingSteps: [...thinkingSteps], recommendation: bundle, clarification, isPending: false }
                   : msg
               )
             );
@@ -463,6 +464,20 @@ function buildLocalFallbackBundle(
   /* ------------------------------------------------------------------ */
   /*  Chat: recommendation selection                                     */
   /* ------------------------------------------------------------------ */
+
+  // “换一杯”视为对当前推荐的拒绝，写入会话记忆，后续推荐会避开
+  function rejectCurrentRecommendation() {
+    const rejectedId = agentRecommendation?.primary.id ?? recommendation?.cocktail.id;
+    if (rejectedId) {
+      setAgentSession((current) => ({
+        ...current,
+        rejectedRecommendationIds: Array.from(
+          new Set([...current.rejectedRecommendationIds, rejectedId])
+        ).slice(-10)
+      }));
+    }
+    navigateTo(resultBackScreen);
+  }
 
   function openChatRecommendation(index: number) {
     if (!latestBundle) return;
@@ -594,6 +609,7 @@ function buildLocalFallbackBundle(
             trustSignals={trustSignals}
             citations={citations}
             onBack={() => navigateTo(resultBackScreen)}
+            onSwapDrink={rejectCurrentRecommendation}
             onTryAnother={startFollowAlong}
           />
         )}

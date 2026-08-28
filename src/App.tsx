@@ -659,7 +659,6 @@ function buildLocalFallbackBundle(
         {screen === "my" && (
           <MyBarView
             profile={userProfile}
-            feedbackCount={feedbackCount}
             onManageIngredients={() => { setIngredientPurpose("manage"); navigateTo("ingredients"); }}
             onSelectCocktail={(item) => { showMenuCocktail(item); setResultBackScreen("my"); }}
             onClearHistory={() => setUserProfile((current) => ({ ...current, recentCocktailIds: [] }))}
@@ -670,10 +669,11 @@ function buildLocalFallbackBundle(
             isParsing={isParsing}
             initialSelected={ingredientPurpose === "manage" ? userProfile.barIngredientIds : undefined}
             saveLabel={ingredientPurpose === "manage" ? "保存到我的酒柜" : undefined}
-            title={ingredientPurpose === "manage" ? "管理我的酒柜" : undefined}
-            description={ingredientPurpose === "manage" ? "勾选家里现有的酒和辅料，酒保会一直记住" : undefined}
+            title={ingredientPurpose === "manage" ? "管理酒柜" : undefined}
+            description={ingredientPurpose === "manage" ? "选择家里现有的酒和辅料" : undefined}
             backLabel={ingredientPurpose === "manage" ? "返回我的酒柜" : undefined}
             allowEmpty={ingredientPurpose === "manage"}
+            mode={ingredientPurpose}
             onBack={() => navigateTo(ingredientPurpose === "manage" ? "my" : "home")}
             onComplete={showIngredientResult}
           />

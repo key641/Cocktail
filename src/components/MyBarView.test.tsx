@@ -4,7 +4,7 @@ import { MyBarView } from "./MyBarView";
 import { emptyAgentSession } from "../domain/userProfile";
 
 describe("MyBarView", () => {
-  it("renders ingredients, favorites, history and preference memory", () => {
+  it("renders the bar status, default favorite view and preference memory", () => {
     const markup = renderToStaticMarkup(
       <MyBarView
         profile={{
@@ -13,7 +13,6 @@ describe("MyBarView", () => {
           barIngredientIds: ["gin", "lemon-juice"],
           agentSession: { ...emptyAgentSession, preferredFlavors: ["清爽"] }
         }}
-        feedbackCount={2}
         onManageIngredients={() => undefined}
         onSelectCocktail={() => undefined}
         onClearHistory={() => undefined}
@@ -21,7 +20,8 @@ describe("MyBarView", () => {
     );
     expect(markup).toContain("我的酒柜");
     expect(markup).toContain("Mojito");
-    expect(markup).toContain("Negroni");
+    expect(markup).toContain("2 种材料");
+    expect(markup).toContain("最近");
     expect(markup).toContain("喜欢：清爽");
   });
 });

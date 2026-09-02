@@ -5,6 +5,7 @@ import type { ShareCaption } from "../../../src/domain/captionGenerator";
 import type { AgentFollowUpAction, ExternalInspirationSearchResult, ExternalRecipeSearchResult } from "../types";
 
 export const REACT_TOOL_NAMES = [
+  "search_cocktails",
   "match_cocktails",
   "get_cocktail_recipe",
   "suggest_classic_twist",

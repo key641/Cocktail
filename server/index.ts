@@ -10,7 +10,27 @@ import { runBartenderAgent } from "./agent/bartenderAgent";
 import { searchCocktailRecipeTool } from "./agent/tools";
 import { loadLocalEnv } from "./env";
 
-loadLocalEnv();
+const localModelEnvKeys = [
+  "OPENAI_API_KEY",
+  "OPENAI_BASE_URL",
+  "OPENAI_MODEL_FAST",
+  "OPENAI_API_STYLE",
+  "AI_TIMEOUT_MS",
+  "AI_FALLBACK_TIMEOUT_MS",
+  "FALLBACK_OPENAI_API_KEY",
+  "FALLBACK_OPENAI_BASE_URL",
+  "FALLBACK_OPENAI_MODEL",
+  "FALLBACK_OPENAI_API_STYLE",
+  "COPY_OPENAI_API_KEY",
+  "COPY_OPENAI_BASE_URL",
+  "COPY_OPENAI_MODEL",
+  "COPY_OPENAI_API_STYLE",
+  "COPY_AI_TIMEOUT_MS"
+] as const;
+
+loadLocalEnv(undefined, {
+  overrideKeys: process.env.NODE_ENV === "production" ? [] : localModelEnvKeys
+});
 
 const app = express();
 const port = Number(process.env.PORT ?? 4174);
@@ -19,6 +39,7 @@ const openAIModel = process.env.OPENAI_MODEL_FAST ?? "gpt-5-mini";
 const openAIBaseUrl = process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1/responses";
 const openAIApiStyle = process.env.OPENAI_API_STYLE === "chat_completions" ? "chat_completions" : "responses";
 const aiTimeoutMs = Number(process.env.AI_TIMEOUT_MS ?? 8000);
+const fallbackTimeoutMs = Number(process.env.AI_FALLBACK_TIMEOUT_MS) || aiTimeoutMs;
 const feedbackStorage = process.env.FEEDBACK_STORAGE ?? "jsonl";
 const feedbackLogPath = resolve(process.env.FEEDBACK_LOG_PATH ?? "server/data/feedback.jsonl");
 const feedbackAdminToken = process.env.FEEDBACK_ADMIN_TOKEN;
@@ -27,6 +48,13 @@ const notionFeedbackDataSourceId = process.env.NOTION_FEEDBACK_DATA_SOURCE_ID;
 const notionFeedbackDatabaseId = process.env.NOTION_FEEDBACK_DATABASE_ID;
 const notionVersion = process.env.NOTION_VERSION ?? "2026-03-11";
 const fallbackApiKey = process.env.FALLBACK_OPENAI_API_KEY;
+const copyApiKey = process.env.COPY_OPENAI_API_KEY ?? fallbackApiKey ?? apiKey;
+const copyBaseUrl = process.env.COPY_OPENAI_BASE_URL ?? process.env.FALLBACK_OPENAI_BASE_URL ?? openAIBaseUrl;
+const copyModel = process.env.COPY_OPENAI_MODEL
+  ?? (copyBaseUrl.includes("api.deepseek.com") ? "deepseek-v4-flash" : process.env.FALLBACK_OPENAI_MODEL)
+  ?? openAIModel;
+const copyApiStyle = (process.env.COPY_OPENAI_API_STYLE ?? process.env.FALLBACK_OPENAI_API_STYLE ?? openAIApiStyle) as "responses" | "chat_completions";
+const copyTimeoutMs = Number(process.env.COPY_AI_TIMEOUT_MS) || 8000;
 const hasFallback = Boolean(apiKey && fallbackApiKey);
 let openAIClient: ReturnType<typeof createOpenAILlmClient> | undefined;
 if (apiKey && fallbackApiKey) {
@@ -45,7 +73,7 @@ if (apiKey && fallbackApiKey) {
       apiStyle: (process.env.FALLBACK_OPENAI_API_STYLE ?? openAIApiStyle) as "responses" | "chat_completions",
       timeoutMs: aiTimeoutMs
     },
-    fallbackTimeoutMs: Number(process.env.AI_FALLBACK_TIMEOUT_MS) || 3000
+    fallbackTimeoutMs
   });
 } else if (apiKey) {
   openAIClient = createOpenAILlmClient({
@@ -56,6 +84,16 @@ if (apiKey && fallbackApiKey) {
     timeoutMs: aiTimeoutMs
   });
 }
+const narrativeClient = copyApiKey
+  ? createOpenAILlmClient({
+      apiKey: copyApiKey,
+      model: copyModel,
+      baseUrl: copyBaseUrl,
+      apiStyle: copyApiStyle,
+      timeoutMs: copyTimeoutMs,
+      disableThinking: copyBaseUrl.includes("api.deepseek.com")
+    })
+  : undefined;
 
 app.use(express.json());
 // CORS: allow all origins
@@ -77,9 +115,13 @@ app.get("/api/agent/status", (_request, response) => {
     baseUrlType: openAIBaseUrl.includes("api.openai.com") ? "openai_official" : "custom",
     apiStyle: openAIApiStyle,
     timeoutMs: aiTimeoutMs,
+    fallbackTimeoutMs: hasFallback ? fallbackTimeoutMs : undefined,
     hasFallback: hasFallback,
     fallbackModel: hasFallback ? (process.env.FALLBACK_OPENAI_MODEL ?? openAIModel) : undefined,
     fallbackBaseUrl: hasFallback ? (process.env.FALLBACK_OPENAI_BASE_URL ?? openAIBaseUrl) : undefined,
+    copyModel: narrativeClient ? copyModel : undefined,
+    copyBaseUrlType: narrativeClient ? (copyBaseUrl.includes("api.deepseek.com") ? "deepseek" : "custom") : undefined,
+    copyTimeoutMs: narrativeClient ? copyTimeoutMs : undefined,
   });
 });
 
@@ -278,6 +320,8 @@ app.post("/api/agent/chat", async (request, response) => {
   const result = await runBartenderAgent({
     text,
     client: openAIClient,
+    parserClient: narrativeClient,
+    narrativeClient,
     session: request.body?.session,
     engine: request.body?.engine === "react" || request.body?.engine === "pipeline" ? request.body.engine : undefined
   });
@@ -305,6 +349,8 @@ data: ${JSON.stringify(data)}
     const result = await runBartenderAgent({
       text,
       client: openAIClient,
+      parserClient: narrativeClient,
+      narrativeClient,
       session: request.body?.session,
       engine: request.body?.engine === "react" || request.body?.engine === "pipeline" ? request.body.engine : undefined,
       onTrace: (entry) => sendSSE("trace", entry),

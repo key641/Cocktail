@@ -1,7 +1,15 @@
 ﻿import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-export function loadLocalEnv(filePath = resolve(process.cwd(), ".env")) {
+type LoadLocalEnvOptions = {
+  override?: boolean;
+  overrideKeys?: readonly string[];
+};
+
+export function loadLocalEnv(
+  filePath = resolve(process.cwd(), ".env"),
+  { override = false, overrideKeys = [] }: LoadLocalEnvOptions = {}
+) {
   if (!existsSync(filePath)) {
     return;
   }
@@ -22,7 +30,9 @@ export function loadLocalEnv(filePath = resolve(process.cwd(), ".env")) {
     const rawValue = trimmed.slice(separator + 1).trim();
     const value = rawValue.replace(/^["']|["']$/g, "");
     if (key) {
-      if (process.env[key] === undefined) { process.env[key] = value; }
+      if (override || overrideKeys.includes(key) || process.env[key] === undefined) {
+        process.env[key] = value;
+      }
     }
   }
 }

@@ -9,7 +9,9 @@ function createFakeClient(overrides?: {
 }): OpenAIJsonClient {
   return {
     generateText: overrides?.generateText ?? (async () => JSON.stringify({
-      recommendationReason: "AI reason: refreshing and easy."
+      message: "AI message: refreshing and easy.",
+      primaryReason: "AI reason: refreshing and easy.",
+      alternativeReasons: ["AI alternative 1", "AI alternative 2"]
     })),
     generateJson: overrides?.generateJson ?? (async <T>() => ({
       requestType: "classic_recommendation",
@@ -110,6 +112,40 @@ describe("runBartenderAgent", () => {
     expect(result.recommendation).toBeUndefined();
   });
 
+  it("returns the requested local recipe instead of a different recommendation", async () => {
+    const result = await runBartenderAgent({
+      text: "莫吉托怎么做？材料和步骤简单告诉我。",
+      client: undefined
+    });
+
+    expect(result.intent).toBe("recipe_lookup");
+    expect(result.recommendation?.primary.id).toBe("mojito");
+    expect(result.recipe?.ingredients.length).toBeGreaterThan(0);
+    expect(result.message).toContain("莫吉托");
+  });
+
+  it("routes a bare cocktail name through local cocktail search", async () => {
+    const result = await runBartenderAgent({
+      text: "莫吉托",
+      client: undefined
+    });
+
+    expect(result.intent).toBe("recipe_lookup");
+    expect(result.recommendation?.primary.id).toBe("mojito");
+    expect(result.agentTrace?.some((entry) => entry.step === "酒款搜索")).toBe(true);
+  });
+
+  it("blocks alcohol recommendations for medication-related sleep requests", async () => {
+    const result = await runBartenderAgent({
+      text: "我刚吃了安眠药，但还是想喝点烈酒帮助睡觉。",
+      client: undefined
+    });
+
+    expect(result.status).toBe("safety_blocked");
+    expect(result.intent).toBe("safe_mocktail");
+    expect(result.toolResults.safety.riskFlags).toContain("medication");
+  });
+
   it("attaches LLM narrative copy when the client can generate text", async () => {
     const result = await runBartenderAgent({
       text: "I want something refreshing and easy",
@@ -129,12 +165,17 @@ describe("runBartenderAgent", () => {
       client: createFakeClient({
         generateText: async () => {
           calls += 1;
-          return JSON.stringify({ recommendationReason: `AI reason ${calls}` });
+          return JSON.stringify({
+            message: "AI bartender message",
+            primaryReason: "AI reason 1",
+            alternativeReasons: ["AI reason 2", "AI reason 3"]
+          });
         }
       })
     });
 
-    expect(calls).toBeGreaterThanOrEqual(3);
+    expect(calls).toBe(1);
+    expect(result.message).toBe("AI bartender message");
     expect(result.recommendation?.primary.reason).toBe("AI reason 1");
     expect(result.recommendation?.alternatives[0]?.reason).toBe("AI reason 2");
     expect(result.alternatives[0]?.reason).toBe("AI reason 2");
@@ -172,6 +213,19 @@ describe("runBartenderAgent", () => {
     expect(result.recommendation?.primary.recipeMode).toBe("external");
     expect(result.recommendation?.primary.name).toBe("Paper Plane");
     expect(result.citations[0].url).toBe("https://example.com/paper-plane");
+  });
+
+  it("bypasses ReAct recommendation for a bare external cocktail name", async () => {
+    const result = await runBartenderAgent({
+      text: "Paper Plane",
+      client: createFakeClient(),
+      engine: "react"
+    });
+
+    expect(result.intent).toBe("named_cocktail_lookup");
+    expect(result.recommendation?.primary.name).toBe("Paper Plane");
+    expect(result.agentTrace?.some((entry) => entry.step === "ReAct 启动")).toBe(false);
+    expect(result.agentTrace?.some((entry) => entry.step === "酒款搜索")).toBe(true);
   });
 
   it("uses IBA-only search when the user asks for an official recipe", async () => {

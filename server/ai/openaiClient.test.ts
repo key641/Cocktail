@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createOpenAIJsonClient, OpenAIJsonClientError } from "./openaiClient";
+import { createFallbackClient, createOpenAIJsonClient, OpenAIJsonClientError } from "./openaiClient";
 
 describe("createOpenAIJsonClient", () => {
   it("can generate plain text without forcing a JSON schema", async () => {
@@ -131,8 +131,58 @@ describe("createOpenAIJsonClient", () => {
     expect(requests[0].url).toBe("https://api.ofox.ai/v1/chat/completions");
     expect(requestBody.model).toBe("openai/gpt-5.4-mini");
     expect(requestBody.messages[0].role).toBe("system");
-    expect(requestBody.response_format).toBeUndefined();
+    expect(requestBody.response_format).toEqual({ type: "json_object" });
     expect(requestBody.messages[0].content).toContain("Respond with valid JSON only.");
+  });
+
+  it("can disable reasoning for a fast copywriting client", async () => {
+    const requests: Array<{ url: string; init: RequestInit }> = [];
+    const fetchImpl: typeof fetch = async (url, init) => {
+      requests.push({ url: String(url), init: init ?? {} });
+      return new Response(JSON.stringify({ choices: [{ message: { content: "{}" } }] }), { status: 200 });
+    };
+    const client = createOpenAIJsonClient({
+      apiKey: "test-key",
+      model: "deepseek-v4-flash",
+      baseUrl: "https://api.deepseek.com",
+      apiStyle: "chat_completions",
+      disableThinking: true,
+      fetchImpl
+    });
+
+    await client.generateText({ system: "Return JSON", user: "test", maxTokens: 320 });
+
+    const requestBody = JSON.parse(String(requests[0].init.body));
+    expect(requestBody.thinking).toEqual({ type: "disabled" });
+    expect(requestBody.max_tokens).toBe(320);
+  });
+
+  it("uses JSON mode and accepts fenced JSON from compatible chat providers", async () => {
+    const requests: Array<{ url: string; init: RequestInit }> = [];
+    const fetchImpl: typeof fetch = async (url, init) => {
+      requests.push({ url: String(url), init: init ?? {} });
+      return new Response(JSON.stringify({ choices: [{ message: { content: "```json\n{\"ok\":true}\n```" } }] }), { status: 200 });
+    };
+    const client = createOpenAIJsonClient({
+      apiKey: "test-key",
+      model: "deepseek-v4-flash",
+      baseUrl: "https://api.deepseek.com",
+      apiStyle: "chat_completions",
+      disableThinking: true,
+      fetchImpl
+    });
+
+    const result = await client.generateJson<{ ok: boolean }>({
+      system: "Return JSON.",
+      user: {},
+      schemaName: "test_schema",
+      schema: { type: "object", properties: { ok: { type: "boolean" } }, required: ["ok"] }
+    });
+
+    const requestBody = JSON.parse(String(requests[0].init.body));
+    expect(result).toEqual({ ok: true });
+    expect(requestBody.response_format).toEqual({ type: "json_object" });
+    expect(requestBody.max_tokens).toBe(800);
   });
 
   it("can call Responses API web search and return citations with structured JSON", async () => {
@@ -215,5 +265,41 @@ describe("createOpenAIJsonClient", () => {
     expect(requestBody.tools).toEqual([{ type: "web_search", filters: { allowed_domains: ["iba-world.com"] } }]);
     expect(result.data.cocktailName).toBe("Mojito");
     expect(result.citations).toEqual([{ url: "https://iba-world.com/mojito/", title: "Mojito" }]);
+  });
+});
+
+describe("createFallbackClient", () => {
+  it("does not start the fallback before the primary request timeout", async () => {
+    let fallbackCalls = 0;
+    const primaryFetch: typeof fetch = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      return new Response(JSON.stringify({ choices: [{ message: { content: "primary" } }] }), { status: 200 });
+    };
+    const fallbackFetch: typeof fetch = async () => {
+      fallbackCalls += 1;
+      return new Response(JSON.stringify({ choices: [{ message: { content: "fallback" } }] }), { status: 200 });
+    };
+    const client = createFallbackClient({
+      primary: {
+        apiKey: "primary-key",
+        model: "primary-model",
+        apiStyle: "chat_completions",
+        timeoutMs: 100,
+        fetchImpl: primaryFetch
+      },
+      fallback: {
+        apiKey: "fallback-key",
+        model: "fallback-model",
+        apiStyle: "chat_completions",
+        timeoutMs: 100,
+        fetchImpl: fallbackFetch
+      },
+      fallbackTimeoutMs: 10
+    });
+
+    const result = await client.generateText({ system: "test", user: "test" });
+
+    expect(result).toBe("primary");
+    expect(fallbackCalls).toBe(0);
   });
 });

@@ -7,6 +7,18 @@ function createContext(session?: ReActRunContext["session"]): ReActRunContext {
 }
 
 describe("reactToolRegistry", () => {
+  it("search_cocktails resolves a direct local cocktail name", async () => {
+    const ctx = createContext();
+    const observation = await reactToolRegistry.search_cocktails.run(
+      { query: "莫吉托" },
+      ctx
+    ) as { exact_match: { ref: string } | null };
+
+    expect(observation.exact_match?.ref).toBe("mojito");
+    expect(ctx.store.localCandidates.has("mojito")).toBe(true);
+    expect(ctx.store.lastMatch?.primary.cocktail.id).toBe("mojito");
+  });
+
   it("match_cocktails normalizes Chinese flavor aliases and drops unknown tokens with a note", async () => {
     const ctx = createContext();
     const observation = await reactToolRegistry.match_cocktails.run(

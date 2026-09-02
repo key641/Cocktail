@@ -3,16 +3,20 @@ import { parseIngredientsLocally } from "./ingredientParser";
 
 export type ParsedRequestType =
   | "classic_recommendation"
+  | "recipe_lookup"
   | "classic_twist"
   | "ingredient_matching"
   | "substitution"
   | "menu_share"
   | "smalltalk";
 
+export type ParsedAction = "recommend" | "recipe" | "twist" | "substitute" | "share" | "smalltalk";
+
 export type ParsedFlavor = "refreshing" | "sour" | "sweet" | "bitter" | "fruity" | "herbal" | "creamy" | "bubbly";
 
 export type ParsedPreference = {
   requestType: ParsedRequestType;
+  action?: ParsedAction;
   availableIngredients: string[];
   flavorPreferences: ParsedFlavor[];
   dislikedFlavors: ParsedFlavor[];
@@ -69,7 +73,7 @@ function parseOccasion(input: string): ParsedPreference["occasion"] {
   return "unknown";
 }
 
-function findReferenceCocktail(input: string) {
+export function findReferenceCocktail(input: string) {
   const normalized = input.toLowerCase();
   return cocktails.find((cocktail) => {
     return (
@@ -80,12 +84,41 @@ function findReferenceCocktail(input: string) {
   })?.id;
 }
 
-function parseRequestType(input: string, availableIngredients: string[], referenceCocktail?: string): ParsedRequestType {
+function isDirectLocalCocktailQuery(input: string, referenceCocktail?: string) {
+  if (!referenceCocktail) return false;
+  const cocktail = cocktails.find((item) => item.id === referenceCocktail);
+  if (!cocktail) return false;
+  const normalized = input
+    .toLowerCase()
+    .replace(/请|麻烦|帮我|给我|搜一下|搜索|搜|查一下|查找|查|找一下|看看|介绍一下|介绍|详情|鸡尾酒|cocktail|recipe|配方|怎么做|如何做|做法|是什么|是啥/gi, "")
+    .replace(/[\s，。！？、,.!?：:；;“”"'‘’()（）\-_&]/g, "");
+  return [cocktail.id, cocktail.name, cocktail.englishName]
+    .map((name) => name.toLowerCase().replace(/[\s\-_&]/g, ""))
+    .includes(normalized);
+}
+
+export function parseRequestAction(
+  input: string,
+  availableIngredients: string[],
+  referenceCocktail?: string
+): ParsedAction {
   if (/你是谁|你能做什么|能干什么|有什么能力|能力范围|怎么用|使用说明|帮助|\bhelp\b|\bhello\b|\bhi\b|你好|闲聊|聊天/i.test(input)) return "smalltalk";
-  if (/分享|文案|发朋友圈|小红书|卡片/.test(input)) return "menu_share";
-  if (/替代|没有.*怎么办|能不能换/.test(input)) return "substitution";
-  if (/像|类似|但|改|没那么|twist/i.test(input) && referenceCocktail) return "classic_twist";
-  if (/我有|家里有|手边有|现有|库存/.test(input) || availableIngredients.length > 0) return "ingredient_matching";
+  if (/分享|文案|发朋友圈|小红书|卡片/.test(input)) return "share";
+  if (/怎么做|如何做|做法|配方|制作步骤|材料.{0,6}步骤|步骤.{0,6}材料|\brecipe\b|how to make/i.test(input) && referenceCocktail) return "recipe";
+  if (isDirectLocalCocktailQuery(input, referenceCocktail)) return "recipe";
+  if (/替代|没有.*怎么办|能不能换/.test(input)) return "substitute";
+  if (/像|类似|但|改|没那么|twist/i.test(input) && referenceCocktail) return "twist";
+  if (/我有|家里有|手边有|现有|库存/.test(input) || availableIngredients.length > 0) return "recommend";
+  return "recommend";
+}
+
+function requestTypeFromAction(action: ParsedAction, availableIngredients: string[]): ParsedRequestType {
+  if (action === "smalltalk") return "smalltalk";
+  if (action === "share") return "menu_share";
+  if (action === "recipe") return "recipe_lookup";
+  if (action === "substitute") return "substitution";
+  if (action === "twist") return "classic_twist";
+  if (availableIngredients.length > 0) return "ingredient_matching";
   return "classic_recommendation";
 }
 
@@ -94,9 +127,11 @@ export function parseUserPreference(input: string): ParsedPreference {
   const referenceCocktail = findReferenceCocktail(input);
   const flavorPreferences = unique(flavorMatchers.filter(([, matcher]) => matcher.test(input)).map(([flavor]) => flavor));
   const dislikedFlavors = unique(dislikedFlavorMatchers.filter(([, matcher]) => matcher.test(input)).map(([flavor]) => flavor));
+  const action = parseRequestAction(input, parsedIngredients.ingredients, referenceCocktail);
 
   return {
-    requestType: parseRequestType(input, parsedIngredients.ingredients, referenceCocktail),
+    requestType: requestTypeFromAction(action, parsedIngredients.ingredients),
+    action,
     availableIngredients: parsedIngredients.ingredients,
     flavorPreferences,
     dislikedFlavors,

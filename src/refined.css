@@ -885,6 +885,67 @@ a:focus-visible {
 .ai-bubble { background: rgba(255, 255, 255, 0.68); }
 .user-bubble { background: var(--olive); }
 
+.chat-message,
+.chat-bubble-content,
+.thinking-inline,
+.thinking-toggle {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.thinking-toggle .thinking-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.thinking-chevron {
+  width: 15px;
+  height: 15px;
+  margin-left: auto;
+  flex: 0 0 15px;
+  stroke-width: 1.75;
+}
+
+.thinking-done {
+  align-self: flex-start;
+  width: fit-content;
+  max-width: 100%;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.thinking-done.is-open {
+  width: 100%;
+}
+
+.thinking-done .thinking-toggle {
+  width: auto;
+  min-height: 44px;
+  padding: 7px 9px;
+  border-radius: 10px;
+}
+
+.thinking-done.is-open .thinking-toggle {
+  width: 100%;
+}
+
+.thinking-done .thinking-steps {
+  width: 100%;
+  padding: 4px 9px 8px;
+}
+
+.thinking-step > div {
+  min-width: 0;
+}
+
+.thinking-step p {
+  overflow-wrap: anywhere;
+}
+
 .chat-recommendation-card {
   border-color: var(--hairline);
   border-radius: 12px;

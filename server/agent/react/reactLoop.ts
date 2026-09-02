@@ -35,6 +35,7 @@ export type ReActLoopResult = {
 };
 
 const TOOL_LABELS: Record<ReActToolName, string> = {
+  search_cocktails: "搜索酒款",
   match_cocktails: "匹配酒款",
   get_cocktail_recipe: "查看配方",
   suggest_classic_twist: "经典改编",

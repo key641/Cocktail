@@ -37,4 +37,22 @@ describe("loadLocalEnv", () => {
 
     rmSync(dir, { recursive: true, force: true });
   });
+
+  it("can override inherited variables for local development", () => {
+    const dir = mkdtempSync(join(tmpdir(), "cocktail-env-"));
+    const file = join(dir, ".env");
+    writeFileSync(file, "OPENAI_API_KEY=local-key\nAI_TIMEOUT_MS=9000\n");
+    for (const key of touchedKeys) {
+      originalEnv.set(key, process.env[key]);
+    }
+    process.env.OPENAI_API_KEY = "inherited-key";
+    process.env.AI_TIMEOUT_MS = "1000";
+
+    loadLocalEnv(file, { overrideKeys: touchedKeys });
+
+    expect(process.env.OPENAI_API_KEY).toBe("local-key");
+    expect(process.env.AI_TIMEOUT_MS).toBe("9000");
+
+    rmSync(dir, { recursive: true, force: true });
+  });
 });

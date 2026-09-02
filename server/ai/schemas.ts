@@ -6,7 +6,11 @@ export const parseRequestSchema = {
   properties: {
     requestType: {
       type: "string",
-      enum: ["classic_recommendation", "classic_twist", "ingredient_matching", "substitution", "menu_share", "smalltalk"]
+      enum: ["classic_recommendation", "recipe_lookup", "classic_twist", "ingredient_matching", "substitution", "menu_share", "smalltalk"]
+    },
+    action: {
+      type: "string",
+      enum: ["recommend", "recipe", "twist", "substitute", "share", "smalltalk"]
     },
     availableIngredients: {
       type: "array",
@@ -32,6 +36,7 @@ export const parseRequestSchema = {
   },
   required: [
     "requestType",
+    "action",
     "availableIngredients",
     "flavorPreferences",
     "dislikedFlavors",

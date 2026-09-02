@@ -65,6 +65,11 @@ export function extractRequestedCocktailName(text: string) {
   const quoted = text.match(/["'“”‘’]([^"'“”‘’]{2,40})["'“”‘’]/)?.[1];
   if (quoted) return quoted.trim();
 
+  const chineseSearch = text.match(/(?:搜一下|搜索|搜|查一下|查找|查|找一下|看看|介绍一下|介绍)\s*([^，。！？,.!?]{2,40})/i)?.[1]
+    ?.replace(/(?:的)?(?:详情|配方|做法|是什么|是啥)$/i, "")
+    .trim();
+  if (chineseSearch) return chineseSearch;
+
   const commonSentenceStarts = new Set(["Can", "Could", "What", "Please", "I", "The", "A", "An"]);
   const candidates = Array.from(text.matchAll(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3})\b/g))
     .map((match) => match[1].trim())
@@ -72,6 +77,23 @@ export function extractRequestedCocktailName(text: string) {
     .sort((a, b) => b.split(/\s+/).length - a.split(/\s+/).length || b.length - a.length);
   const englishName = candidates[0];
   return englishName?.trim();
+}
+
+export function isDirectCocktailSearch(text: string) {
+  const local = findLocalCocktailByText(text);
+  const hasSearchLanguage = /搜一下|搜索|搜|查一下|查找|查|找一下|看看|介绍一下|介绍|详情|怎么做|如何做|做法|配方|是什么|是啥|\brecipe\b|how to make|tell me about|look up/i.test(text);
+  if (local) {
+    const normalized = text.toLowerCase().replace(/[\s，。！？、,.!?：:；;“”"'‘’()（）\-_&]/g, "");
+    const exactName = [local.id, local.name, local.englishName]
+      .map((name) => name.toLowerCase().replace(/[\s\-_&]/g, ""))
+      .includes(normalized);
+    return exactName || hasSearchLanguage;
+  }
+  const requestedName = extractRequestedCocktailName(text);
+  if (!requestedName) return false;
+  const normalizedText = text.toLowerCase().replace(/[\s，。！？、,.!?：:；;“”"'‘’()（）\-_&]/g, "");
+  const normalizedName = requestedName.toLowerCase().replace(/[\s\-_&]/g, "");
+  return hasSearchLanguage || normalizedText === normalizedName;
 }
 
 export function routeAgentIntent({
@@ -84,9 +106,15 @@ export function routeAgentIntent({
   safetyBlocked: boolean;
 }): AgentIntent {
   if (safetyBlocked) return "safe_mocktail";
-  if (preference.requestType === "smalltalk" || smalltalkPattern.test(text)) return "smalltalk";
+  if (preference.action === "smalltalk" || preference.requestType === "smalltalk" || smalltalkPattern.test(text)) return "smalltalk";
   if (preference.requestType === "menu_share") return "share_caption";
   if (officialRecipePattern.test(text)) return "official_recipe_check";
+  if (isDirectCocktailSearch(text)) {
+    return findLocalCocktailByText(text) ? "recipe_lookup" : "named_cocktail_lookup";
+  }
+  if (preference.action === "recipe" || preference.requestType === "recipe_lookup") {
+    return findLocalCocktailByText(text) ? "recipe_lookup" : "named_cocktail_lookup";
+  }
   if (preference.requestType === "classic_twist") return "classic_twist";
 
   const requestedName = extractRequestedCocktailName(text);

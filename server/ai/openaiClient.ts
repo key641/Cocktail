@@ -16,6 +16,7 @@ export type GenerateTextInput = {
   system: string;
   user: unknown;
   temperature?: number;
+  maxTokens?: number;
 };
 
 export type WebCitation = {
@@ -47,6 +48,7 @@ type CreateOpenAIJsonClientOptions = {
   apiStyle?: "responses" | "chat_completions";
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
+  disableThinking?: boolean;
 };
 
 type OpenAIResponse = {
@@ -101,7 +103,8 @@ export function createOpenAIJsonClient({
   baseUrl = "https://api.openai.com/v1/responses",
   apiStyle = "responses",
   timeoutMs = 8000,
-  fetchImpl = fetch
+  fetchImpl = fetch,
+  disableThinking = false
 }: CreateOpenAIJsonClientOptions): OpenAILlmClient {
   async function postJson<T>(url: string, body: unknown, controller: AbortController): Promise<T> {
     const response = await fetchImpl(url, {
@@ -145,12 +148,34 @@ export function createOpenAIJsonClient({
       system,
       "Respond with valid JSON only.",
       `Return exactly one JSON object that matches the schema for ${schemaName}.`,
+      `JSON schema: ${JSON.stringify(schema)}`,
       "Do not include any explanatory text outside the JSON object."
     ].join("\n\n");
   }
 
+  function parseJsonContent<T>(content: string): T {
+    const trimmed = content.trim();
+    if (!trimmed) {
+      throw new OpenAIJsonClientError("Model returned an empty JSON response.");
+    }
+    const withoutFence = trimmed
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/i, "")
+      .trim();
+    const objectStart = withoutFence.indexOf("{");
+    const objectEnd = withoutFence.lastIndexOf("}");
+    const json = objectStart >= 0 && objectEnd >= objectStart
+      ? withoutFence.slice(objectStart, objectEnd + 1)
+      : withoutFence;
+    try {
+      return JSON.parse(json) as T;
+    } catch {
+      throw new OpenAIJsonClientError(`Model returned invalid JSON (${json.length} chars).`);
+    }
+  }
+
   return {
-    async generateText({ system, user, temperature = 0.4 }: GenerateTextInput): Promise<string> {
+    async generateText({ system, user, temperature = 0.4, maxTokens }: GenerateTextInput): Promise<string> {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -163,7 +188,9 @@ export function createOpenAIJsonClient({
                 { role: "system", content: system },
                 { role: "user", content: typeof user === "string" ? user : JSON.stringify(user) }
               ],
-              temperature
+              temperature,
+              ...(disableThinking ? { thinking: { type: "disabled" } } : {}),
+              ...(maxTokens ? { max_tokens: maxTokens } : {})
             },
             controller
           );
@@ -177,7 +204,8 @@ export function createOpenAIJsonClient({
               { role: "system", content: system },
               { role: "user", content: typeof user === "string" ? user : JSON.stringify(user) }
             ],
-            temperature
+            temperature,
+            ...(maxTokens ? { max_output_tokens: maxTokens } : {})
           },
           controller
         );
@@ -205,11 +233,13 @@ export function createOpenAIJsonClient({
                 { role: "system", content: buildJsonSystemPrompt(system, schemaName, schema) },
                 { role: "user", content: JSON.stringify(user) }
               ],
-              temperature: 0
+              temperature: 0,
+              response_format: { type: "json_object" },
+              ...(disableThinking ? { thinking: { type: "disabled" }, max_tokens: 800 } : {})
             },
             controller
           );
-          return JSON.parse(extractChatContent(completion, "{}")) as T;
+          return parseJsonContent<T>(extractChatContent(completion));
         }
 
         const completion = await postResponses(
@@ -230,7 +260,7 @@ export function createOpenAIJsonClient({
           },
           controller
         );
-        return JSON.parse(extractOutputText(completion, "{}")) as T;
+        return parseJsonContent<T>(extractOutputText(completion));
       } catch (error) {
         if (error instanceof OpenAIJsonClientError) {
           throw error;
@@ -272,7 +302,7 @@ export function createOpenAIJsonClient({
           );
 
           return {
-            data: JSON.parse(extractChatContent(completion, "{}")) as T,
+            data: parseJsonContent<T>(extractChatContent(completion)),
             citations: []
           };
         }
@@ -302,7 +332,7 @@ export function createOpenAIJsonClient({
         );
 
         return {
-          data: JSON.parse(extractOutputText(completion, "{}")) as T,
+          data: parseJsonContent<T>(extractOutputText(completion)),
           citations: extractUrlCitations(completion)
         };
       } catch (error) {
@@ -326,7 +356,9 @@ export function createFallbackClient(config: {
 }): OpenAILlmClient {
   const primary = createOpenAIJsonClient(config.primary);
   const fallback = createOpenAIJsonClient(config.fallback);
-  const raceTimeoutMs = config.fallbackTimeoutMs ?? 3000;
+  const primaryTimeoutMs = config.primary.timeoutMs ?? 8000;
+  const configuredFallbackTimeoutMs = config.fallbackTimeoutMs ?? primaryTimeoutMs;
+  const raceTimeoutMs = Math.max(configuredFallbackTimeoutMs, primaryTimeoutMs + 250);
 
   async function withFallback<T>(fn: (client: OpenAILlmClient) => Promise<T>): Promise<T> {
     try {

@@ -10,6 +10,7 @@ export type AgentMode = "local_tools" | "openai_responses_tools" | "openai_agent
 export type AgentIntent =
   | "classic_recommendation"
   | "ingredient_matching"
+  | "recipe_lookup"
   | "named_cocktail_lookup"
   | "official_recipe_check"
   | "classic_twist"

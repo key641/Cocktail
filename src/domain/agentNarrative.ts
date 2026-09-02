@@ -62,16 +62,22 @@ export function buildBartenderOneLiner({
   missingIngredients: string[];
 }) {
   const summary = buildUnderstandingSummary(preference);
-  const flavorText = summary.flavors[0] ?? cocktail.tags[0] ?? "刚好";
-  const ingredientText = summary.ingredients.length ? `${joinReadable(summary.ingredients)}已经在手边` : "今晚的状态很明确";
+  const requestedFlavorText = joinReadable(summary.flavors.slice(0, 2));
+  const cocktailFlavorText = joinReadable(cocktail.tags.slice(0, 2));
 
   if (missingIngredients.length === 0 && summary.ingredients.length > 0) {
-    return `你今晚要的是${flavorText}，${ingredientText}，所以这杯 ${cocktail.name} 今晚就能调。`;
+    const flavorDetail = requestedFlavorText ? `，也符合你想要的${requestedFlavorText}` : "";
+    return `手边这些材料正好能做 ${cocktail.name}${flavorDetail}，现在就可以开始。`;
   }
 
-  if (missingIngredients.length > 0) {
-    return `你想要${flavorText}，${ingredientText}；补齐 ${missingIngredients.map(getIngredientName).join("、")} 后，${cocktail.name} 会很合适。`;
+  if (missingIngredients.length > 0 && summary.ingredients.length > 0) {
+    return `用你手边的材料，可以往 ${cocktail.name} 这个方向做；还差 ${missingIngredients.map(getIngredientName).join("、")}。`;
   }
 
-  return `你今晚要的是${flavorText}，不是复杂；这杯 ${cocktail.name} 刚好接住这个状态。`;
+  if (requestedFlavorText) {
+    return `想喝${requestedFlavorText}的话，可以先看看 ${cocktail.name}。它和你描述的方向比较接近。`;
+  }
+
+  const flavorDetail = cocktailFlavorText ? `，它偏${cocktailFlavorText}` : "";
+  return `如果还没想好，可以先从 ${cocktail.name} 开始${flavorDetail}，看看是不是你喜欢的方向。`;
 }

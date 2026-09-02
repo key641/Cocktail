@@ -1,12 +1,13 @@
 import { parseRequestForAgent } from "../ai/parseRequest";
 import type { OpenAIJsonClient } from "../ai/openaiClient";
-import { generateRecommendationNarrative } from "../ai/recommendationNarrative";
+import { generateRecommendationNarrativeBatch } from "../ai/recommendationNarrative";
 import {
   buildAgentMessageTool,
   generateShareCaptionTool,
   getCocktailRecipeTool,
   getVisualSpecTool,
   matchCocktailsTool,
+  searchCocktailsTool,
   searchCocktailInspirationTool,
   searchCocktailRecipeTool,
   suggestClassicTwistTool,
@@ -21,6 +22,7 @@ import {
   localRecommendationToCandidate,
   mergeAgentSession,
   routeAgentIntent,
+  isDirectCocktailSearch,
   trustSignalsForSource
 } from "./orchestration";
 import type { AgentDrinkCandidate, AgentSessionState, AgentTraceEntry, BartenderAgentResponse } from "./types";
@@ -31,6 +33,8 @@ export type AgentEngine = "react" | "pipeline";
 type RunBartenderAgentInput = {
   text: string;
   client?: OpenAIJsonClient;
+  parserClient?: OpenAIJsonClient;
+  narrativeClient?: OpenAIJsonClient;
   session?: AgentSessionState;
   onTrace?: (entry: AgentTraceEntry) => void;
   engine?: AgentEngine;
@@ -48,7 +52,7 @@ function envInt(name: string, fallback: number): number {
 export async function runBartenderAgent(input: RunBartenderAgentInput): Promise<BartenderAgentResponse> {
   const engine = input.engine ?? resolveAgentEngine(process.env.AGENT_ENGINE);
 
-  if (engine === "react" && input.client) {
+  if (engine === "react" && input.client && !isDirectCocktailSearch(input.text)) {
     try {
       return await runReActAgent({
         text: input.text,
@@ -71,10 +75,10 @@ export async function runBartenderAgent(input: RunBartenderAgentInput): Promise<
   return runPipelineAgent(input);
 }
 
-export async function runPipelineAgent({ text, client, session, onTrace }: RunBartenderAgentInput): Promise<BartenderAgentResponse> {
+export async function runPipelineAgent({ text, client, parserClient, narrativeClient, session, onTrace }: RunBartenderAgentInput): Promise<BartenderAgentResponse> {
   const parsed = await parseRequestForAgent({
     text,
-    client
+    client: parserClient ?? client
   });
   const understanding = understandingTool(parsed.preference);
   const trace: AgentTraceEntry[] = [];
@@ -85,8 +89,8 @@ export async function runPipelineAgent({ text, client, session, onTrace }: RunBa
 
   pushTrace({
     step: "解析用户请求",
-    detail: `解析来源：${parsed.source === "ai" ? "AI 解析" : "本地解析"}，口味偏好：${parsed.preference.flavorPreferences.join("、") || "无"}，可用材料：${parsed.preference.availableIngredients.join("、") || "未提供"}`,
-    data: { source: parsed.source, preference: parsed.preference }
+    detail: `解析来源：${parsed.source === "ai" ? "AI 解析" : "本地解析"}，动作：${parsed.preference.action ?? "未识别"}，耗时：${parsed.debug?.latencyMs ?? 0}ms，候选：${parsed.debug?.candidateCocktailIds?.join("、") || "无"}`,
+    data: { source: parsed.source, preference: parsed.preference, debug: parsed.debug }
   });
 
   pushTrace({
@@ -104,6 +108,7 @@ export async function runPipelineAgent({ text, client, session, onTrace }: RunBa
   const intentLabels: Record<string, string> = {
     classic_recommendation: "经典推荐",
     ingredient_matching: "材料匹配",
+    recipe_lookup: "本地配方查找",
     named_cocktail_lookup: "指定酒款查找",
     official_recipe_check: "官方配方验证",
     classic_twist: "经典改编",
@@ -115,7 +120,7 @@ export async function runPipelineAgent({ text, client, session, onTrace }: RunBa
   pushTrace({
     step: "意图识别",
     detail: `识别意图：${intentLabels[intent] || intent}，请求类型：${parsed.preference.requestType}`,
-    data: { intent, requestType: parsed.preference.requestType }
+    data: { intent, requestType: parsed.preference.requestType, action: parsed.preference.action }
   });
 
   pushTrace({
@@ -179,14 +184,37 @@ export async function runPipelineAgent({ text, client, session, onTrace }: RunBa
     };
   }
 
-  const matched = matchCocktailsTool(parsed.preference, text);
+  const searched = isDirectCocktailSearch(text) ? searchCocktailsTool(text) : undefined;
+  if (searched && !searched.exact) {
+    pushTrace({
+      step: "酒款搜索",
+      detail: "本地酒库未精确命中该酒名，继续查找外部可靠配方。",
+      data: { query: text, candidates: searched.candidates.map((candidate) => candidate.cocktail.id) }
+    });
+  }
+  const matched = searched?.exact
+    ? {
+        primaryRecommendation: searched.exact,
+        alternatives: searched.candidates.filter((candidate) => candidate.cocktail.id !== searched.exact?.cocktail.id).slice(0, 2),
+        ownedIngredients: [],
+        retrievalCandidates: searched.candidates.map((candidate) => ({
+          id: candidate.cocktail.id,
+          name: candidate.cocktail.name,
+          score: candidate.score,
+          evidence: [candidate.reason]
+        }))
+      }
+    : matchCocktailsTool(parsed.preference, text);
 
   pushTrace({
-    step: "鸡尾酒匹配",
-    detail: `主推荐：${matched.primaryRecommendation.cocktail.name}（得分 ${matched.primaryRecommendation.score}），备选 ${matched.alternatives.length} 款`,
+    step: searched?.exact ? "酒款搜索" : "鸡尾酒匹配",
+    detail: searched?.exact
+      ? `按酒名搜索本地酒库，命中 ${matched.primaryRecommendation.cocktail.name}`
+      : `主推荐：${matched.primaryRecommendation.cocktail.name}（得分 ${matched.primaryRecommendation.score}），备选 ${matched.alternatives.length} 款，检索候选 ${matched.retrievalCandidates.length} 款`,
     data: {
       primary: { name: matched.primaryRecommendation.cocktail.name, score: matched.primaryRecommendation.score },
-      alternativesCount: matched.alternatives.length
+      alternativesCount: matched.alternatives.length,
+      retrievalCandidates: matched.retrievalCandidates
     }
   });
   const cocktailId = matched.primaryRecommendation.cocktail.id;
@@ -226,6 +254,9 @@ export async function runPipelineAgent({ text, client, session, onTrace }: RunBa
     recommendation: matched.primaryRecommendation,
     missingIngredients: matched.primaryRecommendation.missingIngredients
   });
+  if (intent === "recipe_lookup") {
+    message = `找到了 ${matched.primaryRecommendation.cocktail.name}。下面是这杯酒的材料、步骤和调制提示。`;
+  }
   if (intent === "named_cocktail_lookup") {
     const requestedName = extractRequestedCocktailName(text) ?? text;
     const external = await searchCocktailRecipeTool({
@@ -333,24 +364,25 @@ export async function runPipelineAgent({ text, client, session, onTrace }: RunBa
   }
 
   const reasonMaxChars = 56;
-  const narrative = await generateRecommendationNarrative({
-    client,
-    cocktail: matched.primaryRecommendation.cocktail,
+  const narrativeBatch = await generateRecommendationNarrativeBatch({
+    client: intent === "recipe_lookup" ? undefined : narrativeClient ?? client,
     preference: parsed.preference,
-    fallbackReason: message,
+    fallbackMessage: message,
+    primary: {
+      cocktail: matched.primaryRecommendation.cocktail,
+      fallbackReason: message
+    },
+    alternatives: matched.alternatives.slice(0, alternativeCandidates.length).map((alternative) => ({
+      cocktail: alternative.cocktail,
+      fallbackReason: alternative.reason
+    })),
     maxReasonChars: reasonMaxChars
   });
-  const alternativeNarratives = await Promise.all(
-    matched.alternatives.slice(0, alternativeCandidates.length).map((alternative) =>
-      generateRecommendationNarrative({
-        client,
-        cocktail: alternative.cocktail,
-        preference: parsed.preference,
-        fallbackReason: alternative.reason,
-        maxReasonChars: reasonMaxChars
-      })
-    )
-  );
+  const narrative = narrativeBatch.primary;
+  const alternativeNarratives = narrativeBatch.alternatives;
+  if (["classic_recommendation", "ingredient_matching", "classic_twist"].includes(intent)) {
+    message = narrativeBatch.message;
+  }
   if (narrative.source === "ai") {
     agentMode = "openai_responses_tools";
   }

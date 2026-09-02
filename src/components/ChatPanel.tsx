@@ -1,5 +1,7 @@
 ﻿import { useState, useRef, useEffect } from "react";
 import { CocktailVisual } from "./CocktailVisual";
+import { useLayoutEffect } from "react";
+import { ChevronDown } from "lucide-react";
 import { FeedbackEntry } from "./FeedbackEntry";
 import { ListeningGlass } from "./ListeningGlass";
 import { useTypewriter } from "../hooks/useTypewriter";
@@ -55,15 +57,15 @@ function ThinkingInline({ steps, live, minimal }: { steps: ThinkingStep[]; live?
   // In minimal (done) mode, show a compact one-liner that expands on click
   if (minimal) {
     return (
-      <div className="thinking-inline thinking-done">
+      <div className={`thinking-inline thinking-done ${open ? "is-open" : ""}`}>
         <button
           className="thinking-toggle"
           onClick={() => setOpen(!open)}
           aria-expanded={open}
         >
           <span className="thinking-dot done" />
-          <span>思考已完成 ({steps.length} 步)</span>
-          <span className={`thinking-chevron ${open ? "open" : ""}`}>▼</span>
+          <span className="thinking-label">思考已完成 ({steps.length} 步)</span>
+          <ChevronDown className={`thinking-chevron ${open ? "open" : ""}`} aria-hidden="true" />
         </button>
         {open && (
           <div className="thinking-steps">
@@ -91,8 +93,8 @@ function ThinkingInline({ steps, live, minimal }: { steps: ThinkingStep[]; live?
         aria-expanded={open}
       >
         <span className="thinking-dot live" />
-        <span>AI 正在思考 ({steps.length} 步)</span>
-        <span className={`thinking-chevron ${open ? "open" : ""}`}>▼</span>
+        <span className="thinking-label">AI 正在思考 ({steps.length} 步)</span>
+        <ChevronDown className={`thinking-chevron ${open ? "open" : ""}`} aria-hidden="true" />
       </button>
       {open && (
         <div className="thinking-steps">
@@ -184,7 +186,7 @@ function AiBubble({
     : [];
 
   return (
-    <div className="chat-message ai-message">
+    <div className="chat-message ai-message" data-message-id={message.id} data-pending={message.isPending || undefined}>
       <div className="chat-avatar ai-avatar">
         <ListeningGlass state="thinking" liquidTone="citrus" />
       </div>
@@ -302,11 +304,19 @@ export function ChatPanel({
   onSelectRecommendation
 }: ChatPanelProps) {
   const [text, setText] = useState("");
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const messagesAreaRef = useRef<HTMLDivElement>(null);
+  const lastRevealedPendingIdRef = useRef<string | null>(null);
+  const lastMessage = messages.at(-1);
+  const pendingMessageId = lastMessage?.role === "ai" && lastMessage.isPending ? lastMessage.id : null;
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isThinking]);
+  useLayoutEffect(() => {
+    if (!pendingMessageId || lastRevealedPendingIdRef.current === pendingMessageId) return;
+    const pendingMessage = messagesAreaRef.current?.querySelector<HTMLElement>(
+      `[data-message-id="${pendingMessageId}"]`
+    );
+    pendingMessage?.scrollIntoView({ behavior: "auto", block: "nearest" });
+    lastRevealedPendingIdRef.current = pendingMessageId;
+  }, [pendingMessageId]);
 
   function submit() {
     const value = text.trim();
@@ -335,7 +345,7 @@ export function ChatPanel({
         onBack={onBack}
       />
 
-      <div className="chat-messages-area">
+      <div className="chat-messages-area" ref={messagesAreaRef} aria-live="polite" aria-busy={isThinking}>
         {!hasMessages && !isThinking && (
           <>
             <div className="chat-companion">
@@ -370,8 +380,6 @@ export function ChatPanel({
             </div>
           </div>
         )}
-
-        <div ref={bottomRef} />
       </div>
 
       <div className="chat-input-card">

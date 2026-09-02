@@ -1,5 +1,5 @@
 import type { OpenAIJsonClient } from "../../ai/openaiClient";
-import type { ParsedFlavor, ParsedPreference } from "../../../src/domain/preferenceParser";
+import { parseUserPreference, type ParsedFlavor, type ParsedPreference } from "../../../src/domain/preferenceParser";
 import type { CaptionStyle } from "../../../src/domain/captionGenerator";
 import { cocktails } from "../../../src/data/cocktails";
 import { ingredients } from "../../../src/data/ingredients";
@@ -7,6 +7,7 @@ import {
   generateShareCaptionTool,
   getCocktailRecipeTool,
   matchCocktailsTool,
+  searchCocktailsTool,
   searchCocktailInspirationTool,
   searchCocktailRecipeTool,
   suggestClassicTwistTool
@@ -139,6 +140,42 @@ function requireCocktailId(value: unknown): string {
   }
   return id;
 }
+
+const searchCocktails: ReActTool = {
+  name: "search_cocktails",
+  description: "用户直接输入酒名、要求查找某款酒或查看详情时，先搜索本地酒库。不要用它做口味推荐。",
+  argsDoc: `{"query": "用户输入的酒名或搜索原话"}`,
+  async run(args, ctx) {
+    const query = asRequiredString(args.query, "query");
+    const result = searchCocktailsTool(query);
+    for (const candidate of result.candidates) {
+      ctx.store.localCandidates.set(candidate.cocktail.id, candidate);
+    }
+    if (result.exact) {
+      ctx.store.lastMatch = {
+        preference: parseUserPreference(query),
+        primary: result.exact,
+        alternatives: result.candidates.filter((candidate) => candidate.cocktail.id !== result.exact?.cocktail.id).slice(0, 2),
+        ownedIngredients: []
+      };
+    }
+    return {
+      exact_match: result.exact
+        ? {
+            ref: result.exact.cocktail.id,
+            name: result.exact.cocktail.name,
+            english_name: result.exact.cocktail.englishName
+          }
+        : null,
+      candidates: result.candidates.slice(0, 3).map((candidate) => ({
+        ref: candidate.cocktail.id,
+        name: candidate.cocktail.name,
+        english_name: candidate.cocktail.englishName,
+        score: candidate.score
+      }))
+    };
+  }
+};
 
 const matchCocktails: ReActTool = {
   name: "match_cocktails",
@@ -345,6 +382,7 @@ const shareCaption: ReActTool = {
 };
 
 export const reactToolRegistry: Record<ReActToolName, ReActTool> = {
+  search_cocktails: searchCocktails,
   match_cocktails: matchCocktails,
   get_cocktail_recipe: getRecipe,
   suggest_classic_twist: suggestTwist,

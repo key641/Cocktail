@@ -9,6 +9,7 @@ import {
 } from "../../src/domain/agentFlow";
 import { buildBartenderOneLiner, buildUnderstandingSummary } from "../../src/domain/agentNarrative";
 import { generateShareCaption, type CaptionStyle } from "../../src/domain/captionGenerator";
+import { retrieveCocktailCandidates } from "../../src/domain/cocktailRetrieval";
 import { rankForExploration, recommendByIngredients } from "../../src/domain/recommendation";
 import { checkAlcoholSafety } from "../../src/domain/safety";
 import { suggestTwist } from "../../src/domain/twistEngine";
@@ -27,10 +28,12 @@ export function safetyCheckTool(text: string) {
 }
 
 export function matchCocktailsTool(preference: ParsedPreference, semanticQuery?: string) {
+  const seed = Date.now();
   const result = buildAgentRecommendation({
     cocktails,
     preference,
-    semanticQuery
+    semanticQuery,
+    seed
   });
 
   const tasteProfile = tasteFromPreference(preference);
@@ -45,15 +48,55 @@ export function matchCocktailsTool(preference: ParsedPreference, semanticQuery?:
       mood: moodFromPreference(preference),
       preferredStrength: strengthFromPreference(preference.strengthPreference),
       tasteProfile,
-      semanticQuery
+      semanticQuery,
+      seed
     });
 
+  const retrievalCandidates = retrieveCocktailCandidates(semanticQuery ?? "");
+  const retrievalScores = new Map(retrievalCandidates.map((candidate) => [candidate.cocktail.id, candidate.score]));
+  const canFuseRetrieval = preference.requestType === "classic_recommendation" && retrievalCandidates.length > 0;
+  const fusedAlternatives = canFuseRetrieval
+    ? alternatives
+        .map((candidate) => ({
+          ...candidate,
+          score: candidate.score + Math.min(35, (retrievalScores.get(candidate.cocktail.id) ?? 0) / 4)
+        }))
+        .sort((left, right) => right.score - left.score)
+    : alternatives;
+  const primaryRecommendation = canFuseRetrieval ? fusedAlternatives[0] : result.recommendation;
+
   return {
-    primaryRecommendation: result.recommendation,
-    alternatives: alternatives
-      .filter((candidate) => candidate.cocktail.id !== result.recommendation.cocktail.id)
+    primaryRecommendation,
+    alternatives: fusedAlternatives
+      .filter((candidate) => candidate.cocktail.id !== primaryRecommendation.cocktail.id)
       .slice(0, 2),
-    ownedIngredients: result.ownedIngredients
+    ownedIngredients: result.ownedIngredients,
+    retrievalCandidates: retrievalCandidates.map((candidate) => ({
+      id: candidate.cocktail.id,
+      name: candidate.cocktail.name,
+      score: candidate.score,
+      evidence: candidate.evidence
+    }))
+  };
+}
+
+export function searchCocktailsTool(query: string) {
+  const retrieved = retrieveCocktailCandidates(query, 5);
+  const recommendations: CocktailRecommendation[] = retrieved.map((candidate) => ({
+    cocktail: candidate.cocktail,
+    ownedIngredients: [],
+    missingIngredients: candidate.cocktail.ingredients.map((ingredient) => ingredient.ingredientId),
+    score: candidate.score,
+    reason: candidate.evidence.length
+      ? `酒名或关键词命中：${candidate.evidence.join("、")}`
+      : "本地酒库搜索结果"
+  }));
+  const exact = recommendations.find((candidate) => candidate.score >= 120);
+
+  return {
+    exact,
+    candidates: recommendations,
+    query
   };
 }
 
@@ -297,17 +340,11 @@ export function buildAgentMessageTool({
   recommendation: CocktailRecommendation;
   missingIngredients: string[];
 }) {
-  const line = buildBartenderOneLiner({
+  return buildBartenderOneLiner({
     preference,
     cocktail: recommendation.cocktail,
     missingIngredients
   });
-
-  const missingText = missingIngredients.length
-    ? `需要补 ${missingIngredients.map(getIngredientName).join("、")}。`
-    : "你手边的材料已经可以开始。";
-
-  return `${line}${missingText}`;
 }
 
 export function understandingTool(preference: ParsedPreference) {

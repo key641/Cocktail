@@ -80,6 +80,27 @@ export function buildAgentRecommendation({
 }: BuildAgentRecommendationInput): BuildAgentRecommendationResult {
   const tasteProfile = tasteFromPreference(preference);
 
+  if (preference.referenceCocktail && (preference.action === "recipe" || preference.requestType === "recipe_lookup")) {
+    const cocktail = cocktails.find((item) => item.id === preference.referenceCocktail);
+    if (cocktail) {
+      const requiredIngredients = cocktail.ingredients
+        .filter((ingredient) => !ingredient.optional)
+        .map((ingredient) => ingredient.ingredientId);
+      const ownedIngredients = requiredIngredients.filter((ingredientId) => preference.availableIngredients.includes(ingredientId));
+      const missingIngredients = requiredIngredients.filter((ingredientId) => !preference.availableIngredients.includes(ingredientId));
+      return {
+        recommendation: {
+          cocktail,
+          ownedIngredients,
+          missingIngredients,
+          score: 100,
+          reason: `已识别到指定酒款 ${cocktail.name}，直接返回本地配方。`
+        },
+        ownedIngredients: preference.availableIngredients
+      };
+    }
+  }
+
   if (preference.availableIngredients.length > 0 || preference.requestType === "ingredient_matching") {
     const [recommendation] = recommendByIngredients({
       cocktails,

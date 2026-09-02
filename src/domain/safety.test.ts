@@ -16,4 +16,15 @@ describe("checkAlcoholSafety", () => {
     expect(result.shouldAvoidAlcohol).toBe(false);
     expect(result.riskFlags).toEqual([]);
   });
+
+  it.each([
+    "刚吃了安眠药，想喝杯烈酒",
+    "正在服用抗焦虑药，可以喝吗",
+    "吃了止痛药以后想喝一杯"
+  ])("recognizes medication risk phrasing: %s", (query) => {
+    const result = checkAlcoholSafety(query);
+
+    expect(result.shouldAvoidAlcohol).toBe(true);
+    expect(result.riskFlags).toContain("medication");
+  });
 });

@@ -43,6 +43,18 @@ function nextMessageId() {
   return `msg-${++messageIdCounter}`;
 }
 
+export function beginChatTurn(messages: ChatMessage[], userId: string, aiId: string, text: string): ChatMessage[] {
+  const cleaned = messages.filter((message) => {
+    if (message.role !== "ai") return true;
+    return Boolean(message.text || message.recommendation);
+  });
+  return [
+    ...cleaned,
+    { id: userId, role: "user", text },
+    { id: aiId, role: "ai", text: "", thinkingSteps: [], isPending: true }
+  ];
+}
+
 function readPhotoAsDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -313,19 +325,7 @@ function buildLocalFallbackBundle(
     const userId = nextMessageId();
     const aiId = nextMessageId();
 
-    setChatMessages((prev) => {
-      const cleaned = prev.filter((m) => {
-        if (m.role !== "ai") return true;
-        // Keep completed AI messages (have text or recommendation)
-        if (m.text || m.recommendation) return true;
-        // Remove ghost/incomplete AI messages from previous queries
-        return false;
-      });
-      return [
-        ...cleaned,
-        { id: userId, role: "user", text }
-      ];
-    });
+    setChatMessages((prev) => beginChatTurn(prev, userId, aiId, text));
     activeAiIdRef.current = aiId;
     setIsStreaming(true);
 
@@ -435,6 +435,7 @@ function buildLocalFallbackBundle(
               )
             );
             setIsStreaming(false);
+            activeAiIdRef.current = null;
             return;
           } else if (eventType === "error") {
             throw new Error(data.message || "Stream error");

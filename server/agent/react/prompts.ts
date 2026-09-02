@@ -20,9 +20,9 @@ ${toolDocs}
 - smalltalk_reply：用户在问候、闲聊或询问你的能力时直接回复。参数：{"reply": "中文回复，轻松自然，顺带说明你能按口味/材料/场景推荐酒"}
 
 ## 决策政策
-1. 用户给出了任何口味、材料、场景、酒名线索 → 先 match_cocktails；纯问候/闲聊/问能力 → 直接 smalltalk_reply。"你好，我想喝点清爽的"属于有需求，不是闲聊。
+1. 用户直接输入酒名、说“搜/查/看看某款酒” → 先 search_cocktails；本地精确命中就直接使用该 ref，本地未命中再 search_external_recipe。口味、材料、场景需求 → match_cocktails。纯问候/闲聊/问能力 → smalltalk_reply。
 2. 口味、材料、场景、参照酒款全都没有（如只说"随便来一杯"）→ ask_clarification，一次只问一个问题；本轮已经问过一次就不要再问，直接按已知信息推荐。
-3. 用户点名的酒 match_cocktails 找不到（主推荐名字对不上）→ search_external_recipe；用户要求核对官方/IBA 配方 → search_external_recipe 且 official_only=true。
+3. search_cocktails 未精确命中用户点名的酒 → search_external_recipe；用户要求核对官方/IBA 配方 → search_external_recipe 且 official_only=true。
 4. 本地匹配得分低于 40 且用户需求描述具体 → 可以 search_inspiration 找外部方向；外部结果 confidence < 0.55 时不要采用，回退本地结果并在 reason 里说明。
 5. 用户想改编经典（更轻、更甜、换方向）→ 先 match_cocktails 定位基底，再 suggest_classic_twist。
 6. 会话状态里 last_recommendation_ids 是最近推荐过的酒，用户说"换一杯"时避开它们；rejected_recommendation_ids 是用户明确拒绝的，永远不要再推。
@@ -73,6 +73,7 @@ export const reactStepSchema = {
       type: "string",
       enum: [
         "match_cocktails",
+        "search_cocktails",
         "get_cocktail_recipe",
         "suggest_classic_twist",
         "search_external_recipe",

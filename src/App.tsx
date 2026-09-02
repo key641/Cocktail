@@ -19,7 +19,7 @@ import { buildAgentRecommendation, moodFromPreference, strengthFromPreference, t
 import { buildBartenderOneLiner, buildUnderstandingSummary, type UnderstandingSummary } from "./domain/agentNarrative";
 import { parseIngredientsLocally } from "./domain/ingredientParser";
 import { parseUserPreference, type ParsedPreference } from "./domain/preferenceParser";
-import { recommendByIngredients, recommendForExploration } from "./domain/recommendation";
+import { recommendByIngredients } from "./domain/recommendation";
 import { checkAlcoholSafety, type AlcoholSafetyResult } from "./domain/safety";
 import type { CaptionStyle } from "./domain/captionGenerator";
 import type { AgentRecommendationBundle, AgentSessionState, Citation, TrustSignal } from "./domain/agentTypes";
@@ -29,6 +29,8 @@ import { API_BASE } from "./config/api";
 import { addRecentCocktail, loadUserProfile, saveUserProfile, toggleFavoriteCocktail } from "./domain/userProfile";
 
 type Screen = "home" | "chat" | "explore" | "ingredients" | "menu" | "atoms" | "my" | "result" | "follow" | "share";
+
+const VALID_SCREENS: Screen[] = ["home", "chat", "explore", "ingredients", "menu", "atoms", "my", "result", "follow", "share"];
 
 function isBottomNavScreen(s: Screen): boolean {
   return s === "home" || s === "menu" || s === "atoms" || s === "my";
@@ -147,20 +149,31 @@ export default function App() {
     }
   });
   const scrollPositions = useRef<Partial<Record<Screen, number>>>({});
+  const screenRef = useRef<Screen>(screen);
+  screenRef.current = screen;
 
-  function navigateTo(next: Screen) {
+  // 切屏共用逻辑：保存当前屏滚动位置后切换（不写浏览器历史）
+  function applyScreen(next: Screen) {
     const el = document.querySelector(".screen");
-    if (el) scrollPositions.current[screen] = el.scrollTop;
+    if (el) scrollPositions.current[screenRef.current] = el.scrollTop;
     // Detail pages always start at top
     if (next === "result" || next === "follow" || next === "share") {
       delete scrollPositions.current[next];
     }
     setScreen(next);
   }
+
+  function navigateTo(next: Screen) {
+    if (next === screenRef.current) return;
+    applyScreen(next);
+    window.history.pushState({ screen: next }, "");
+  }
   const [resultBackScreen, setResultBackScreen] = useState<Screen>("home");
 
   /* --- result-screen state (shared by all paths) --- */
   const [recommendation, setRecommendation] = useState<CocktailRecommendation | null>(null);
+  // “换一杯”备用候选：按来源路径的排序结果填充，就地切换用
+  const [alternativePool, setAlternativePool] = useState<CocktailRecommendation[]>([]);
   const [ownedIngredients, setOwnedIngredients] = useState<string[]>([]);
   const [unknownIngredients, setUnknownIngredients] = useState<string[]>([]);
   const [bartenderLine, setBartenderLine] = useState("");
@@ -185,6 +198,28 @@ export default function App() {
   const [photoUrl, setPhotoUrl] = useState("");
   const [isPhotoProcessing, setIsPhotoProcessing] = useState(false);
   const [photoError, setPhotoError] = useState("");
+
+  // 浏览器返回/前进手势驱动屏幕切换，避免手势返回直接退出应用
+  const recommendationRef = useRef(recommendation);
+  recommendationRef.current = recommendation;
+
+  useEffect(() => {
+    window.history.replaceState({ screen: screenRef.current }, "");
+
+    function handlePopState(event: PopStateEvent) {
+      const stateScreen = (event.state as { screen?: Screen } | null)?.screen;
+      let next: Screen = stateScreen && VALID_SCREENS.includes(stateScreen) ? stateScreen : "home";
+      // 数据依赖页在推荐状态丢失（如刷新后前进）时回退首页
+      if ((next === "result" || next === "follow" || next === "share") && !recommendationRef.current) {
+        next = "home";
+        window.history.replaceState({ screen: next }, "");
+      }
+      applyScreen(next);
+    }
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   // Restore scroll position when switching screens
   const prevScreenRef = useRef<Screen>(screen);
@@ -225,19 +260,21 @@ export default function App() {
   /* ------------------------------------------------------------------ */
 
   function showExplorationResult(choices: ExploreChoices) {
-    const result = recommendForExploration({
+    const ranked = rankForExploration({
       cocktails,
       mood: choices.mood,
       preferredStrength: choices.strength,
       tasteProfile: choices.tasteProfile,
       seed: choices.seed
     });
+    const result = ranked[0];
     setOwnedIngredients([]);
     setUnknownIngredients([]);
     setAgentRecommendation(undefined);
     setTrustSignals([{ type: "local_classic", label: "本地经典酒单", description: "配方来自产品内维护的经典酒单。" }]);
     setCitations([]);
     setRecommendation(result);
+    setAlternativePool(ranked.slice(1));
     setResultBackScreen("home");
     navigateTo("result");
   }
@@ -257,17 +294,19 @@ export default function App() {
       navigateTo("my");
       return;
     }
-    const [result] = recommendByIngredients({
+    const ranked = recommendByIngredients({
       cocktails,
       ownedIngredientIds: merged,
       tasteProfile
     });
+    const [result] = ranked;
     setOwnedIngredients(merged);
     setUnknownIngredients(parsed.unknown);
     setAgentRecommendation(undefined);
     setTrustSignals([{ type: "local_classic", label: "本地经典酒单", description: "根据你现有的材料在本地酒单中匹配。" }]);
     setCitations([]);
     setRecommendation(result);
+    setAlternativePool(ranked.slice(1));
     setIsParsing(false);
     setResultBackScreen("home");
     navigateTo("result");
@@ -529,10 +568,12 @@ function buildLocalFallbackBundle(
   /*  Chat: recommendation selection                                     */
   /* ------------------------------------------------------------------ */
 
-  // “换一杯”视为对当前推荐的拒绝，写入会话记忆，后续推荐会避开
+  // “换一杯”视为对当前推荐的拒绝：写入会话记忆，并立即就地换成下一个候选
   function rejectCurrentRecommendation() {
     const rejectedId = agentRecommendation?.primary.id ?? recommendation?.cocktail.id;
+    const rejectedIds = new Set(agentSession.rejectedRecommendationIds);
     if (rejectedId) {
+      rejectedIds.add(rejectedId);
       setAgentSession((current) => ({
         ...current,
         rejectedRecommendationIds: Array.from(
@@ -540,7 +581,24 @@ function buildLocalFallbackBundle(
         ).slice(-10)
       }));
     }
-    navigateTo(resultBackScreen);
+
+    const nextRec = alternativePool.find((r) => !rejectedIds.has(r.cocktail.id));
+    if (!nextRec) {
+      // 候选用尽，回到来源页重新选择
+      navigateTo(resultBackScreen);
+      return;
+    }
+
+    setAlternativePool((pool) => pool.filter((r) => r.cocktail.id !== nextRec.cocktail.id));
+    setRecommendation(nextRec);
+    setAgentRecommendation(undefined);
+    setBartenderLine(nextRec.reason);
+    setTrustSignals([]);
+    setCitations([]);
+    requestAnimationFrame(() => {
+      const el = document.querySelector(".screen");
+      if (el) el.scrollTop = 0;
+    });
   }
 
   function openChatRecommendation(index: number) {
@@ -559,6 +617,7 @@ function buildLocalFallbackBundle(
         setRecommendation(primaryRec);
         setOwnedIngredients(primaryRec.ownedIngredients);
       }
+      setAlternativePool(latestAlternatives.filter((r) => r.cocktail.id !== candidate.id));
       setResultBackScreen("chat");
       navigateTo("result");
       return;
@@ -572,6 +631,7 @@ function buildLocalFallbackBundle(
       setAgentRecommendation(undefined);
       setBartenderLine(match.reason);
       setOwnedIngredients(match.ownedIngredients);
+      setAlternativePool(latestAlternatives.filter((r) => r.cocktail.id !== candidate.id));
       setTrustSignals([{ type: "local_classic", label: "本地经典酒单" }]);
       setCitations([]);
       setResultBackScreen("chat");
@@ -594,6 +654,8 @@ function buildLocalFallbackBundle(
     setTrustSignals([{ type: "local_classic", label: "本地经典酒单", description: "来自当前维护的酒单内容。" }]);
     setCitations([]);
     setRecommendation(rec);
+    // 酒单是用户自选，不提供“换一杯”
+    setAlternativePool([]);
     setResultBackScreen("menu");
     navigateTo("result");
   }
@@ -705,7 +767,7 @@ function buildLocalFallbackBundle(
             trustSignals={trustSignals}
             citations={citations}
             onBack={() => navigateTo(resultBackScreen)}
-            onSwapDrink={rejectCurrentRecommendation}
+            onSwapDrink={alternativePool.length > 0 ? rejectCurrentRecommendation : undefined}
             onTryAnother={startFollowAlong}
             isFavorite={userProfile.favoriteCocktailIds.includes(recommendation.cocktail.id)}
             onToggleFavorite={() => setUserProfile((current) => toggleFavoriteCocktail(current, recommendation.cocktail.id))}

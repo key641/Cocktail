@@ -146,7 +146,9 @@ export function ResultView({
       </div>
 
       <div className="secondary-action-dock split-actions">
-        <button className="secondary-action" onClick={onSwapDrink ?? onBack}>换一杯</button>
+        {onSwapDrink && (
+          <button className="secondary-action" onClick={onSwapDrink}>换一杯</button>
+        )}
         {!isExternalRecommendation && (
           <button className="primary-action" onClick={onTryAnother}>开始调制</button>
         )}
